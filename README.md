@@ -16,14 +16,17 @@ DSGVO-first SaaS wrapper around Paperclip with a dedicated Next.js frontend, Ger
 ## Quick Start
 
 1. Copy `.env.example` to `.env` and fill in your secrets.
-2. Initialize submodules with `git submodule update --init --recursive` if needed.
-3. Configure the checked-out `paperclip/` backend for your environment.
-4. Work inside `wrapper/` for the SaaS frontend.
-5. Start the stack with `docker compose -f docker-compose.prod.yml up`.
+2. Initialize submodules with `git submodule update --init --recursive`.
+3. Run `./setup` inside `.claude/skills/gstack` to build its local tooling and refresh the linked skills.
+4. Run `uv sync` inside `custom-skills/autoresearch` on a compatible Linux/CUDA environment.
+5. Configure the checked-out `paperclip/` backend for your environment.
+6. Work inside `wrapper/` for the SaaS frontend.
+7. Start the stack with `docker compose -f docker-compose.prod.yml up`.
 
 ## Notes
 
 - `paperclip/` is now tracked as a submodule so the root repository records the exact backend revision.
+- `.claude/skills/gstack` and `custom-skills/autoresearch` are tracked as submodules as well.
 - `SKILLS.md` now contains the active German-language master prompt and DSGVO policy layer.
 - `wrapper/` was scaffolded with `create-next-app` and already includes `@clerk/nextjs`, `stripe`, `@stripe/stripe-js`, and `lucide-react`.
-- `paperclip.clone-backup/` is ignored and only exists as a temporary backup of the earlier standalone clone.
+- `custom-skills/autoresearch` currently targets CUDA-enabled Linux for full execution. On macOS ARM it will not fully resolve with the pinned PyTorch build.
