@@ -1,35 +1,40 @@
 import Link from "next/link";
 import { Activity, ArrowRight, BadgeEuro, FileBarChart2, Shield } from "lucide-react";
 import { AuthControls } from "../../components/auth-controls";
+import { formatPlanLabel } from "../../lib/credits";
+import { getCurrentUserState } from "../../lib/current-user";
 
-const cards = [
-  {
-    label: "Monatlicher Umsatz",
-    value: "12.480 EUR",
-    detail: "aus drei aktiven Companies",
-    icon: BadgeEuro,
-  },
-  {
-    label: "Agentenläufe",
-    value: "48",
-    detail: "seit Mitternacht ausgeführt",
-    icon: Activity,
-  },
-  {
-    label: "Compliance",
-    value: "gruen",
-    detail: "Consent und Logs im Rahmen",
-    icon: Shield,
-  },
-  {
-    label: "DATEV Export",
-    value: "bereit",
-    detail: "letzte Aktualisierung 07:42",
-    icon: FileBarChart2,
-  },
-];
+export default async function DashboardPage() {
+  const { creditSummary } = await getCurrentUserState();
+  const cards = [
+    {
+      label: "Verfuegbare Credits",
+      value: String(creditSummary.availableCredits),
+      detail: `${creditSummary.freeTrialCredits} Trial + ${creditSummary.launchBonusCredits} Launch + ${creditSummary.monthlyPlanCredits} Plan`,
+      icon: BadgeEuro,
+    },
+    {
+      label: "Aktiver Plan",
+      value: formatPlanLabel(creditSummary.plan),
+      detail: "Steuert Monatscredits und Feature-Grenzen",
+      icon: Activity,
+    },
+    {
+      label: "Launch Bonus",
+      value: creditSummary.launchBonusClaimed ? "aktiv" : "offen",
+      detail: creditSummary.launchBonusExpiresAt
+        ? `gueltig bis ${new Date(creditSummary.launchBonusExpiresAt).toLocaleDateString("de-DE")}`
+        : "100 Bonuscredits fuer den Launch-Claim",
+      icon: Shield,
+    },
+    {
+      label: "Verbrauchte Credits",
+      value: String(creditSummary.consumedCredits),
+      detail: "Wird spaeter pro Workflow und Agentenlauf belastet",
+      icon: FileBarChart2,
+    },
+  ];
 
-export default function DashboardPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-8 sm:px-10 lg:px-12">
       <div className="flex flex-col gap-4 border-b border-[var(--line)] pb-6">
@@ -95,7 +100,7 @@ export default function DashboardPage() {
             <div className="milestone-row">
               <span className="milestone-index">01</span>
               <p className="text-sm leading-7 text-[var(--soft)]">
-                Checkout bestätigen und Billing-Status auf aktiv setzen.
+                Launch-Credits claimen oder Starter-Checkout abschliessen.
               </p>
             </div>
             <div className="milestone-row">

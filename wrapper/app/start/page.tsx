@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { AuthControls } from "../../components/auth-controls";
+import { formatPlanLabel } from "../../lib/credits";
+import { getCurrentUserState } from "../../lib/current-user";
 
 const checklist = [
   "Clerk Account vorhanden oder Sign-up abgeschlossen",
@@ -9,7 +11,9 @@ const checklist = [
   "Paperclip Provisioning-Bridge erreichbar",
 ];
 
-export default function StartPage() {
+export default async function StartPage() {
+  const { creditSummary } = await getCurrentUserState();
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-8 sm:px-10 lg:px-12">
       <div className="flex flex-col gap-4 border-b border-[var(--line)] pb-6">
@@ -64,15 +68,43 @@ export default function StartPage() {
           </div>
 
           <p className="text-sm leading-7 text-[var(--soft)]">
-            Der Billing-Einstieg ist jetzt vorbereitet: Checkout geht in Stripe,
-            der Webhook markiert den Abschluss, und danach hängen wir die
+            Du kannst jetzt zuerst Credits aktivieren oder direkt in den
+            Starter-Checkout gehen. Danach haengen wir die eigentliche
             Company-Provisionierung Richtung Paperclip an.
           </p>
 
+          <div className="credits-stack">
+            <div className="credit-stat">
+              <span className="credit-label">Verfuegbar</span>
+              <strong className="credit-value">
+                {creditSummary.availableCredits} Credits
+              </strong>
+            </div>
+            <div className="credit-stat">
+              <span className="credit-label">Plan</span>
+              <strong className="credit-value">
+                {formatPlanLabel(creditSummary.plan)}
+              </strong>
+            </div>
+            <div className="credit-stat">
+              <span className="credit-label">Launch Bonus</span>
+              <strong className="credit-value">
+                {creditSummary.launchBonusClaimed ? "bereits aktiviert" : "100 Credits offen"}
+              </strong>
+            </div>
+          </div>
+
           <div className="mt-6 flex flex-col gap-3">
+            {creditSummary.bonusEligible ? (
+              <form action="/api/credits/claim" method="POST">
+                <button className="secondary-cta w-full" type="submit">
+                  100 Launch Credits claimen
+                </button>
+              </form>
+            ) : null}
             <form action="/api/stripe/checkout" method="POST">
               <button className="primary-cta w-full" type="submit">
-                Checkout starten
+                Starter Checkout starten
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>

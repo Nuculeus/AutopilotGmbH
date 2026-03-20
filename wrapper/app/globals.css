@@ -240,6 +240,35 @@ a {
   backdrop-filter: blur(12px);
 }
 
+.credits-stack {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
+.credit-stat {
+  border-radius: 1.2rem;
+  border: 1px solid rgba(255, 245, 232, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.95rem 1rem;
+}
+
+.credit-label {
+  display: block;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(244, 239, 229, 0.68);
+}
+
+.credit-value {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1.05rem;
+  letter-spacing: -0.03em;
+  color: var(--panel-ink);
+}
+
 @media (max-width: 640px) {
   .metrics-grid {
     grid-template-columns: 1fr;

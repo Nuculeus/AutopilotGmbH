@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     metadata: {
       clerkUserId: userId,
       flow: "autopilot-company-start",
+      targetPlan: "starter",
     },
   });
 
