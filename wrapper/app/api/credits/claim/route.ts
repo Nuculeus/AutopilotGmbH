@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
   if (current.launchBonusClaimed) {
     return NextResponse.redirect(
-      new URL("/start?credits=already-claimed", request.url),
+      new URL("/launch?credits=already-claimed", request.url),
       303,
     );
   }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
   return NextResponse.redirect(
     new URL(
-      `/start?credits=claimed&bonus=${CREDIT_POLICY.launchBonusCredits}`,
+      `/launch?credits=claimed&bonus=${CREDIT_POLICY.launchBonusCredits}`,
       request.url,
     ),
     303,
