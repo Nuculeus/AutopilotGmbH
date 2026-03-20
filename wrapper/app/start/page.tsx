@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { AuthControls } from "../../components/auth-controls";
 import { formatPlanLabel } from "../../lib/credits";
 import { getCurrentUserState } from "../../lib/current-user";
+import { resolveLaunchFlowState } from "../../lib/launch-flow";
 
 const checklist = [
   "Clerk Account vorhanden oder Sign-up abgeschlossen",
@@ -12,7 +13,14 @@ const checklist = [
 ];
 
 export default async function StartPage() {
-  const { creditSummary } = await getCurrentUserState();
+  const { creditSummary, autopilotState } = await getCurrentUserState();
+  const flow = resolveLaunchFlowState({
+    availableCredits: creditSummary.availableCredits,
+    plan: creditSummary.plan,
+    companyId: autopilotState.companyId,
+    provisioningStatus: autopilotState.provisioningStatus,
+    canOpenWorkspace: autopilotState.canOpenWorkspace,
+  });
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-8 sm:px-10 lg:px-12">
@@ -68,9 +76,7 @@ export default async function StartPage() {
           </div>
 
           <p className="text-sm leading-7 text-[var(--soft)]">
-            Du kannst jetzt zuerst Credits aktivieren oder direkt in den
-            Starter-Checkout gehen. Danach haengen wir die eigentliche
-            Company-Provisionierung Richtung Paperclip an.
+            {flow.description}
           </p>
 
           <div className="credits-stack">
@@ -92,6 +98,10 @@ export default async function StartPage() {
                 {creditSummary.launchBonusClaimed ? "bereits aktiviert" : "100 Credits offen"}
               </strong>
             </div>
+            <div className="credit-stat">
+              <span className="credit-label">Provisioning</span>
+              <strong className="credit-value">{flow.title}</strong>
+            </div>
           </div>
 
           <div className="mt-6 flex flex-col gap-3">
@@ -102,12 +112,19 @@ export default async function StartPage() {
                 </button>
               </form>
             ) : null}
-            <form action="/api/stripe/checkout" method="POST">
+            <form action={flow.primaryAction.href} method={flow.primaryAction.method ?? "GET"}>
               <button className="primary-cta w-full" type="submit">
-                Starter Checkout starten
+                {flow.primaryAction.label}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>
+            {flow.stage !== "needs_access" ? (
+              <form action="/api/stripe/checkout" method="POST">
+                <button className="secondary-cta w-full" type="submit">
+                  Starter Checkout trotzdem starten
+                </button>
+              </form>
+            ) : null}
             <Link className="secondary-cta" href="/">
               Zur Landingpage
             </Link>
