@@ -1,0 +1,8 @@
+.env
+.DS_Store
+.worktrees
+.claude/skills/gstack/node_modules
+custom-skills/autoresearch/.venv
+paperclip.clone-backup
+wrapper/.next
+wrapper/node_modules

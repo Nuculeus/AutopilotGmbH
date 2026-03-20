@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - autopilot_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  paperclip:
+    build:
+      context: ./paperclip
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PAPERCLIP_BASE_URL: ${PAPERCLIP_BASE_URL}
+    ports:
+      - "${PAPERCLIP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  wrapper:
+    image: node:22-alpine
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm dev --hostname 0.0.0.0 --port 3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./wrapper:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      paperclip:
+        condition: service_started
+
+volumes:
+  autopilot_postgres_data:
