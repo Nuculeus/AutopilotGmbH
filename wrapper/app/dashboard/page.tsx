@@ -3,15 +3,29 @@ import { Activity, ArrowRight, BadgeEuro, FileBarChart2, Shield } from "lucide-r
 import { AuthControls } from "../../components/auth-controls";
 import { formatPlanLabel } from "../../lib/credits";
 import { getCurrentUserState } from "../../lib/current-user";
+import { resolveLaunchFlowState } from "../../lib/launch-flow";
 
 export default async function DashboardPage() {
-  const { creditSummary } = await getCurrentUserState();
+  const { creditSummary, autopilotState } = await getCurrentUserState();
+  const flow = resolveLaunchFlowState({
+    availableCredits: creditSummary.availableCredits,
+    plan: creditSummary.plan,
+    companyId: autopilotState.companyId,
+    provisioningStatus: autopilotState.provisioningStatus,
+    canOpenWorkspace: autopilotState.canOpenWorkspace,
+  });
   const cards = [
     {
       label: "Verfuegbare Credits",
       value: String(creditSummary.availableCredits),
       detail: `${creditSummary.freeTrialCredits} Trial + ${creditSummary.launchBonusCredits} Launch + ${creditSummary.monthlyPlanCredits} Plan`,
       icon: BadgeEuro,
+    },
+    {
+      label: "Company Status",
+      value: autopilotState.companyName ?? "noch keine Company",
+      detail: `${autopilotState.provisioningStatus} / ${autopilotState.workspaceStatus}`,
+      icon: Activity,
     },
     {
       label: "Aktiver Plan",
@@ -57,10 +71,12 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <Link className="primary-cta self-start md:self-auto" href="/start">
-          Neue Firma anlegen
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+        <form action={flow.primaryAction.href} method={flow.primaryAction.method ?? "GET"}>
+          <button className="primary-cta self-start md:self-auto" type="submit">
+            {flow.primaryAction.label}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </form>
         </div>
       </div>
 
@@ -131,8 +147,7 @@ export default async function DashboardPage() {
           </div>
 
           <p className="text-sm leading-7 text-[var(--soft)]">
-            Sobald Auth, Billing und Company-Provisioning stehen, wird dieses
-            Dashboard zum Einstiegspunkt in die operative Paperclip-Ansicht.
+            {flow.description}
           </p>
 
           <Link className="secondary-cta mt-6 inline-flex" href="/">
