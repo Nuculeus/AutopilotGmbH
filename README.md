@@ -20,7 +20,8 @@ Der Kunde sieht nur den Next.js-Wrapper unter `wrapper/`: Login, Launch Credits,
 - `custom-skills/` enthält `autoresearch` und weitere repo-eigene Skills.
 - `.claude/skills/` und `.agents/skills/` enthalten die Skill-Layer für Agenten und Claude-Workflows.
 - `SKILLS.md` ist die deutsche DSGVO-/Operating-Policy.
-- `docker-compose.prod.yml` beschreibt den Launch-Deploy auf einer einzelnen EU-Instanz.
+- `docker-compose.prod.yml` beschreibt den produktionsnahen Launch-Deploy.
+- `Caddyfile` stellt TLS und Reverse Proxying für den Wrapper bereit.
 - `.env.example` ist der minimale Runtime-Vertrag.
 
 ## Launch-Flow
@@ -31,41 +32,40 @@ Der Kunde sieht nur den Next.js-Wrapper unter `wrapper/`: Login, Launch Credits,
 4. `/start` bootstrapped die Company über die interne Paperclip-Bridge.
 5. `/app/*` zeigt die native Launch-Shell mit kontrollierten Paperclip-Datenflächen.
 
-## Deployment-Modell
+## Production-Stack
 
-Für den Launch ist das Ziel bewusst einfach:
+Der produktionsnahe Compose-Schnitt ist:
 
-- eine öffentliche Wrapper-URL
-- ein privater Paperclip-Service im selben Compose-Netz
-- externe Postgres-DB
-- Clerk für Auth
-- Stripe für Billing
-- `INTERNAL_BRIDGE_SECRET` als Vertrauensanker zwischen Wrapper und Paperclip
+- `caddy` für TLS und die öffentliche Domain
+- `wrapper` als einzige öffentlich erreichbare App
+- `paperclip` nur intern im Docker-Netz
+- `postgres` als lokale Launch-DB
 
 Wichtig:
 
+- `caddy` routet nur auf `wrapper`
+- `wrapper` spricht `paperclip` intern unter `http://paperclip:3100`
 - `paperclip` läuft in `authenticated/private`
 - `PAPERCLIP_AUTH_DISABLE_SIGN_UP=true`
-- Endkunden loggen sich nicht direkt in Paperclip ein
-- `paperclip` sollte nicht direkt ans Internet exponiert werden
+- Endkunden loggen sich nie direkt in Paperclip ein
 
-## Quick Start
+## Hetzner Quick Start
 
-1. `.env.example` nach `.env` kopieren und Secrets setzen.
-2. Submodules initialisieren:
-   `git submodule update --init --recursive`
-3. Optional lokale Skill-Setups ausführen:
-   - `.claude/skills/gstack`: `./setup`
-   - `custom-skills/autoresearch`: `uv sync` auf kompatiblem Linux/CUDA-Host
-4. Launch-Stack starten:
-   `docker compose -f docker-compose.prod.yml up --build`
-5. Wrapper öffnen:
-   [http://localhost:3000](http://localhost:3000)
+1. Repo klonen und Submodules holen:
+   `git clone <repo> && cd WRAP && git submodule update --init --recursive`
+2. `.env.example` nach `.env` kopieren und Production-Secrets setzen.
+3. `APP_DOMAIN`, `APP_BASE_URL` und `NEXT_PUBLIC_APP_URL` auf die echte Domain setzen.
+4. DNS-A-Record auf die Server-IP zeigen lassen.
+5. Stack starten:
+   `docker compose -f docker-compose.prod.yml up -d --build`
+
+Caddy zieht danach das Zertifikat automatisch, sobald die Domain auf den Server zeigt.
 
 ## Wichtige Env-Variablen
 
+- `APP_DOMAIN`: Domain für Caddy, z. B. `autopilotgmbh.de`
 - `APP_BASE_URL` und `NEXT_PUBLIC_APP_URL`: öffentliche Wrapper-URL
-- `PAPERCLIP_INTERNAL_URL`: interne Docker-Adresse von Paperclip, typischerweise `http://paperclip:8080`
+- `PAPERCLIP_INTERNAL_URL`: interne Docker-Adresse von Paperclip, typischerweise `http://paperclip:3100`
 - `INTERNAL_BRIDGE_SECRET`: gemeinsames Secret für Provisioning und Workspace-Bridge
 - `PAPERCLIP_DEPLOYMENT_MODE=authenticated`
 - `PAPERCLIP_DEPLOYMENT_EXPOSURE=private`
@@ -78,3 +78,4 @@ Wichtig:
 - `custom-skills/autoresearch` ist aktuell auf CUDA/Linux ausgelegt und läuft auf macOS ARM nicht vollständig.
 - Die Launch-Bridge deckt aktuell bewusst nur eine kleine Allowlist produktiver Paperclip-Flächen ab.
 - Redis/BullMQ und tiefere Queue-Steuerung sind noch nicht Teil dieses Compose-Schnitts.
+- `docker compose config` konnte auf diesem Host zuletzt nicht geprüft werden, weil lokal kein `docker`-Binary installiert ist.

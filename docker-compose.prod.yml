@@ -1,6 +1,22 @@
 version: "3.9"
 
 services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      wrapper:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -25,41 +41,85 @@ services:
       - .env
     environment:
       HOST: 0.0.0.0
-      PORT: 8080
+      PORT: 3100
       DATABASE_URL: ${DATABASE_URL}
       PAPERCLIP_DEPLOYMENT_MODE: ${PAPERCLIP_DEPLOYMENT_MODE:-authenticated}
       PAPERCLIP_DEPLOYMENT_EXPOSURE: ${PAPERCLIP_DEPLOYMENT_EXPOSURE:-private}
       PAPERCLIP_AUTH_DISABLE_SIGN_UP: ${PAPERCLIP_AUTH_DISABLE_SIGN_UP:-true}
       PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES:-paperclip}
       INTERNAL_BRIDGE_SECRET: ${INTERNAL_BRIDGE_SECRET}
+      NODE_ENV: production
     expose:
-      - "8080"
+      - "3100"
+    volumes:
+      - paperclip_data:/paperclip
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3100/api/health').then((res)=>{if(!res.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
   wrapper:
-    image: node:22-alpine
-    working_dir: /app
+    build:
+      context: ./wrapper
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
       - .env
     environment:
       NODE_ENV: production
-      PORT: 3000
-      PAPERCLIP_INTERNAL_URL: ${PAPERCLIP_INTERNAL_URL:-http://paperclip:8080}
-      PAPERCLIP_API_URL: ${PAPERCLIP_API_URL:-http://paperclip:8080}
+      APP_BASE_URL: ${APP_BASE_URL}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_URL}
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_URL}
+      NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL}
+      NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL}
+      CLERK_SIGN_IN_URL: ${CLERK_SIGN_IN_URL}
+      CLERK_SIGN_UP_URL: ${CLERK_SIGN_UP_URL}
+      CLERK_AFTER_SIGN_IN_URL: ${CLERK_AFTER_SIGN_IN_URL}
+      CLERK_AFTER_SIGN_UP_URL: ${CLERK_AFTER_SIGN_UP_URL}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_STARTER_PRICE_ID: ${STRIPE_STARTER_PRICE_ID}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      PAPERCLIP_INTERNAL_URL: ${PAPERCLIP_INTERNAL_URL:-http://paperclip:3100}
+      PAPERCLIP_API_URL: ${PAPERCLIP_API_URL:-http://paperclip:3100}
       INTERNAL_BRIDGE_SECRET: ${INTERNAL_BRIDGE_SECRET}
-    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm build && pnpm start --hostname 0.0.0.0 --port 3000"
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./wrapper:/app
+      PAPERCLIP_BRIDGE_READS_PER_MINUTE: ${PAPERCLIP_BRIDGE_READS_PER_MINUTE:-30}
+      PAPERCLIP_BRIDGE_WRITES_PER_MINUTE: ${PAPERCLIP_BRIDGE_WRITES_PER_MINUTE:-6}
+    expose:
+      - "3000"
     depends_on:
       postgres:
         condition: service_healthy
       paperclip:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then((res)=>{if(!res.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
 volumes:
   autopilot_postgres_data:
+  paperclip_data:
+  caddy_data:
+  caddy_config:
