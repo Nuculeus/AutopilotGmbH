@@ -1,4 +1,6 @@
+import { clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { CREDIT_POLICY, normalizeCreditMetadata } from "@/lib/credits";
 import { getStripe } from "@/lib/stripe";
 
 export async function POST(request: Request) {
@@ -20,9 +22,36 @@ export async function POST(request: Request) {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      const clerkUserId = session.metadata?.clerkUserId;
+      const targetPlan = session.metadata?.targetPlan;
+
+      if (clerkUserId) {
+        const client = await clerkClient();
+        const user = await client.users.getUser(clerkUserId);
+        const current = normalizeCreditMetadata(
+          user.publicMetadata?.autopilotCredits,
+        );
+
+        await client.users.updateUserMetadata(clerkUserId, {
+          publicMetadata: {
+            autopilotCredits: {
+              ...current,
+              plan: targetPlan === "pro" ? "pro" : "starter",
+            },
+          },
+          privateMetadata: {
+            stripeCustomerId:
+              typeof session.customer === "string" ? session.customer : null,
+            lastCheckoutSessionId: session.id,
+          },
+        });
+      }
+
       console.log("stripe.checkout.session.completed", {
         checkoutSessionId: session.id,
-        clerkUserId: session.metadata?.clerkUserId,
+        clerkUserId,
+        targetPlan,
+        starterMonthlyCredits: CREDIT_POLICY.starterMonthlyCredits,
       });
     }
 
