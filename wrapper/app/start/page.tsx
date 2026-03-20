@@ -64,18 +64,23 @@ export default function StartPage() {
           </div>
 
           <p className="text-sm leading-7 text-[var(--soft)]">
-            Als Nächstes hängen wir hier die API-Route an, die nach erfolgreichem
-            Billing eine neue Company in Paperclip anlegt und den Nutzer in sein
-            Dashboard weiterleitet.
+            Der Billing-Einstieg ist jetzt vorbereitet: Checkout geht in Stripe,
+            der Webhook markiert den Abschluss, und danach hängen wir die
+            Company-Provisionierung Richtung Paperclip an.
           </p>
 
           <div className="mt-6 flex flex-col gap-3">
-            <Link className="primary-cta" href="/dashboard">
-              Dashboard ansehen
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <form action="/api/stripe/checkout" method="POST">
+              <button className="primary-cta w-full" type="submit">
+                Checkout starten
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
             <Link className="secondary-cta" href="/">
               Zur Landingpage
+            </Link>
+            <Link className="secondary-cta" href="/dashboard">
+              Dashboard ansehen
             </Link>
           </div>
         </aside>
