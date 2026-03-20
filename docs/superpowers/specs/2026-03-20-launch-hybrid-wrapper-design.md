@@ -69,6 +69,8 @@ Launch access should therefore use a server-side bridge that does all of the fol
 
 The bridge can start as a controlled internal proxy, but the security boundary is identity translation plus membership, not frontend rewrites.
 
+The bridge actor should be stable per user. The recommended launch shape is a Paperclip-recognized principal derived from Clerk identity, for example `clerk:<userId>`, rather than a shared fake admin identity. This keeps company membership, auditability, and later per-user workspace access aligned.
+
 ## Provisioning Flow
 
 ### Signup To First Company
@@ -77,10 +79,11 @@ The bridge can start as a controlled internal proxy, but the security boundary i
 2. User claims launch credits or chooses a paid plan.
 3. User starts company creation from the wrapper.
 4. Wrapper calls an internal provisioning route.
-5. Provisioning route creates the Paperclip company through an admin-capable internal path.
-6. Provisioning route records the `clerkUserId -> paperclipCompanyId` mapping plus status metadata.
-7. Provisioning route bootstraps company defaults, including German prompts and skill references.
-8. Wrapper redirects the user into the launch dashboard shell.
+5. Provisioning route calls a Paperclip-only internal endpoint such as `POST /api/internal/bootstrap-company`.
+6. Paperclip creates the company through an admin-capable internal path and assigns a stable bridge principal derived from Clerk identity.
+7. Provisioning route records the `clerkUserId -> paperclipCompanyId` mapping plus status metadata.
+8. Provisioning route bootstraps company defaults, including German prompts and skill references.
+9. Wrapper redirects the user into the launch dashboard shell.
 
 ### Provisioning Constraints
 
@@ -159,6 +162,7 @@ This phased model lets launch happen now without locking the product into long-t
 ## Open Questions And Constraints
 
 - Paperclip company creation currently requires instance-admin or local-trusted access, so launch needs an internal admin-capable provisioning path.
-- The exact launch bridge mechanism still needs a final technical choice between controlled reverse proxying, server-fetched embedded views, or a tighter backend facade.
+- Launch should use a dedicated internal Paperclip route plus a stable bridge principal such as `clerk:<userId>`.
+- The exact workspace delivery mechanism still needs a final technical choice between controlled reverse proxying, server-fetched embedded views, or a tighter backend facade.
 - Paperclip branding and English-heavy UI text will need selective override or wrapper framing on reused launch screens.
 - `autoresearch` remains checked out but is not runnable on the current macOS ARM host due to CUDA-pinned dependencies.
