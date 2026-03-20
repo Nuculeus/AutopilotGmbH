@@ -1,32 +1,80 @@
 # AutopilotGmbH
 
-DSGVO-first SaaS wrapper around Paperclip with a dedicated Next.js frontend, German agent skills, and a deployment layout aimed at low-cost EU hosting.
+AutopilotGmbH ist ein `wrapper-first` DACH-Launch um `Paperclip`.
 
-## Structure
+Der Kunde sieht nur den Next.js-Wrapper unter `wrapper/`: Login, Launch Credits, Billing, Company-Start, Dashboard-Shell und die deutsche Betriebsoberfläche. `paperclip/` läuft dahinter als interner Execution-Core und wird über eine kontrollierte Bridge angesprochen.
 
-- `paperclip/` is a git submodule pointing at your Paperclip fork and remains the orchestration backend.
-- `wrapper/` contains the customer-facing Next.js SaaS layer with Clerk and Stripe dependencies installed.
-- `custom-skills/` contains reusable organization-specific skills such as Gstack, Autoresearch, and German-language prompts.
-- `.claude/skills/` contains Paperclip-specific skill links or files for Claude-compatible tooling.
-- `.agents/skills/` contains shared skills for general agents.
-- `SKILLS.md` contains the top-level operating prompt and policy layer.
-- `docker-compose.prod.yml` provides the production-oriented compose contract for Paperclip, Postgres, and the wrapper.
-- `.env.example` lists the environment variables required to run the stack.
+## Architektur
+
+- `wrapper/` ist die einzige öffentliche App.
+- `paperclip/` bleibt privat im Docker-Netz und bekommt keine direkte Endkunden-Loginrolle.
+- Company-Provisioning läuft über die interne Route `/api/internal/bootstrap-company`.
+- Workspace-Zugriffe laufen über die Wrapper-Bridge unter `/api/paperclip/[...path]`.
+- Der stabile Nutzer-Principal in Paperclip ist `clerk:<userId>`.
+- Externe Heavy-Use-Tools sollen im Launch bevorzugt als `bring your own keys` angebunden werden.
+
+## Repository
+
+- `paperclip/` ist das Git-Submodule für den Execution-Core.
+- `wrapper/` enthält die Next.js-Launch-App.
+- `custom-skills/` enthält `autoresearch` und weitere repo-eigene Skills.
+- `.claude/skills/` und `.agents/skills/` enthalten die Skill-Layer für Agenten und Claude-Workflows.
+- `SKILLS.md` ist die deutsche DSGVO-/Operating-Policy.
+- `docker-compose.prod.yml` beschreibt den Launch-Deploy auf einer einzelnen EU-Instanz.
+- `.env.example` ist der minimale Runtime-Vertrag.
+
+## Launch-Flow
+
+1. Nutzer landet im Wrapper.
+2. Clerk Sign-in oder Sign-up.
+3. `/launch` entscheidet zentral: Sign-in, Credits/Billing, Provisioning oder Workspace.
+4. `/start` bootstrapped die Company über die interne Paperclip-Bridge.
+5. `/app/*` zeigt die native Launch-Shell mit kontrollierten Paperclip-Datenflächen.
+
+## Deployment-Modell
+
+Für den Launch ist das Ziel bewusst einfach:
+
+- eine öffentliche Wrapper-URL
+- ein privater Paperclip-Service im selben Compose-Netz
+- externe Postgres-DB
+- Clerk für Auth
+- Stripe für Billing
+- `INTERNAL_BRIDGE_SECRET` als Vertrauensanker zwischen Wrapper und Paperclip
+
+Wichtig:
+
+- `paperclip` läuft in `authenticated/private`
+- `PAPERCLIP_AUTH_DISABLE_SIGN_UP=true`
+- Endkunden loggen sich nicht direkt in Paperclip ein
+- `paperclip` sollte nicht direkt ans Internet exponiert werden
 
 ## Quick Start
 
-1. Copy `.env.example` to `.env` and fill in your secrets.
-2. Initialize submodules with `git submodule update --init --recursive`.
-3. Run `./setup` inside `.claude/skills/gstack` to build its local tooling and refresh the linked skills.
-4. Run `uv sync` inside `custom-skills/autoresearch` on a compatible Linux/CUDA environment.
-5. Configure the checked-out `paperclip/` backend for your environment.
-6. Work inside `wrapper/` for the SaaS frontend.
-7. Start the stack with `docker compose -f docker-compose.prod.yml up`.
+1. `.env.example` nach `.env` kopieren und Secrets setzen.
+2. Submodules initialisieren:
+   `git submodule update --init --recursive`
+3. Optional lokale Skill-Setups ausführen:
+   - `.claude/skills/gstack`: `./setup`
+   - `custom-skills/autoresearch`: `uv sync` auf kompatiblem Linux/CUDA-Host
+4. Launch-Stack starten:
+   `docker compose -f docker-compose.prod.yml up --build`
+5. Wrapper öffnen:
+   [http://localhost:3000](http://localhost:3000)
 
-## Notes
+## Wichtige Env-Variablen
 
-- `paperclip/` is now tracked as a submodule so the root repository records the exact backend revision.
-- `.claude/skills/gstack` and `custom-skills/autoresearch` are tracked as submodules as well.
-- `SKILLS.md` now contains the active German-language master prompt and DSGVO policy layer.
-- `wrapper/` was scaffolded with `create-next-app` and already includes `@clerk/nextjs`, `stripe`, `@stripe/stripe-js`, and `lucide-react`.
-- `custom-skills/autoresearch` currently targets CUDA-enabled Linux for full execution. On macOS ARM it will not fully resolve with the pinned PyTorch build.
+- `APP_BASE_URL` und `NEXT_PUBLIC_APP_URL`: öffentliche Wrapper-URL
+- `PAPERCLIP_INTERNAL_URL`: interne Docker-Adresse von Paperclip, typischerweise `http://paperclip:8080`
+- `INTERNAL_BRIDGE_SECRET`: gemeinsames Secret für Provisioning und Workspace-Bridge
+- `PAPERCLIP_DEPLOYMENT_MODE=authenticated`
+- `PAPERCLIP_DEPLOYMENT_EXPOSURE=private`
+- `PAPERCLIP_AUTH_DISABLE_SIGN_UP=true`
+- `PAPERCLIP_ALLOWED_HOSTNAMES=paperclip`
+- `PAPERCLIP_BRIDGE_READS_PER_MINUTE` und `PAPERCLIP_BRIDGE_WRITES_PER_MINUTE`: Launch-Guardrails gegen Poweruser-Spikes
+
+## Hinweise
+
+- `custom-skills/autoresearch` ist aktuell auf CUDA/Linux ausgelegt und läuft auf macOS ARM nicht vollständig.
+- Die Launch-Bridge deckt aktuell bewusst nur eine kleine Allowlist produktiver Paperclip-Flächen ab.
+- Redis/BullMQ und tiefere Queue-Steuerung sind noch nicht Teil dieses Compose-Schnitts.

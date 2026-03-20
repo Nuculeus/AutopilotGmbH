@@ -24,10 +24,16 @@ services:
     env_file:
       - .env
     environment:
+      HOST: 0.0.0.0
+      PORT: 8080
       DATABASE_URL: ${DATABASE_URL}
-      PAPERCLIP_BASE_URL: ${PAPERCLIP_BASE_URL}
-    ports:
-      - "${PAPERCLIP_PORT:-8080}:8080"
+      PAPERCLIP_DEPLOYMENT_MODE: ${PAPERCLIP_DEPLOYMENT_MODE:-authenticated}
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: ${PAPERCLIP_DEPLOYMENT_EXPOSURE:-private}
+      PAPERCLIP_AUTH_DISABLE_SIGN_UP: ${PAPERCLIP_AUTH_DISABLE_SIGN_UP:-true}
+      PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES:-paperclip}
+      INTERNAL_BRIDGE_SECRET: ${INTERNAL_BRIDGE_SECRET}
+    expose:
+      - "8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,7 +44,13 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm dev --hostname 0.0.0.0 --port 3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      PAPERCLIP_INTERNAL_URL: ${PAPERCLIP_INTERNAL_URL:-http://paperclip:8080}
+      PAPERCLIP_API_URL: ${PAPERCLIP_API_URL:-http://paperclip:8080}
+      INTERNAL_BRIDGE_SECRET: ${INTERNAL_BRIDGE_SECRET}
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm build && pnpm start --hostname 0.0.0.0 --port 3000"
     ports:
       - "3000:3000"
     volumes:
