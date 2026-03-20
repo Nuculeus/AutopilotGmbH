@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { AuthControls } from "../../components/auth-controls";
 
 const checklist = [
   "Clerk Account vorhanden oder Sign-up abgeschlossen",
@@ -11,11 +12,14 @@ const checklist = [
 export default function StartPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-8 sm:px-10 lg:px-12">
-      <div className="flex items-center justify-between border-b border-[var(--line)] pb-6">
-        <Link className="nav-link" href="/">
-          <ArrowLeft className="h-4 w-4" />
-          Zurück
-        </Link>
+      <div className="flex flex-col gap-4 border-b border-[var(--line)] pb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Link className="nav-link" href="/">
+            <ArrowLeft className="h-4 w-4" />
+            Zurück
+          </Link>
+          <AuthControls />
+        </div>
         <p className="font-mono text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
           Firma starten
         </p>

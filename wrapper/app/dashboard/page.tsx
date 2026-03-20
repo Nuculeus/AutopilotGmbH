@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Activity, ArrowRight, BadgeEuro, FileBarChart2, Shield } from "lucide-react";
+import { AuthControls } from "../../components/auth-controls";
 
 const cards = [
   {
@@ -31,11 +32,16 @@ const cards = [
 export default function DashboardPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-8 sm:px-10 lg:px-12">
-      <div className="flex flex-col gap-4 border-b border-[var(--line)] pb-6 md:flex-row md:items-end md:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 border-b border-[var(--line)] pb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="font-mono text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
             Dashboard Preview
           </p>
+          <AuthControls />
+        </div>
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em]">
             Operative Lage deiner Company
           </h1>
@@ -50,6 +56,7 @@ export default function DashboardPage() {
           Neue Firma anlegen
           <ArrowRight className="h-4 w-4" />
         </Link>
+        </div>
       </div>
 
       <section className="grid gap-4 py-10 md:grid-cols-2 xl:grid-cols-4">

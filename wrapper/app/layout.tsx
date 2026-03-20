@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -29,7 +30,9 @@ export default function RootLayout({
   return (
     <html lang="de" className={rootClassName}>
       <body className="min-h-full bg-[var(--page-bg)] text-[var(--ink)]">
-        {children}
+        <ClerkProvider>
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );
