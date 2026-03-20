@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { AuthControls } from "../components/auth-controls";
 
 const pillars = [
   {
@@ -60,6 +61,7 @@ export default function Home() {
             <Link className="nav-link" href="/start">
               Firma starten
             </Link>
+            <AuthControls />
           </nav>
         </header>
 

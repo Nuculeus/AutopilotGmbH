@@ -185,6 +185,16 @@ a {
   color: var(--accent-deep);
 }
 
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.4rem 0.55rem;
+}
+
 .metrics-grid {
   display: grid;
   gap: 0.9rem;
@@ -211,8 +221,31 @@ a {
   letter-spacing: -0.03em;
 }
 
+.auth-screen {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+}
+
+.auth-panel {
+  width: 100%;
+  max-width: 32rem;
+  border: 1px solid var(--line);
+  border-radius: 2rem;
+  background: rgba(255, 252, 248, 0.88);
+  padding: 1.5rem;
+  box-shadow: 0 20px 40px rgba(46, 40, 28, 0.1);
+  backdrop-filter: blur(12px);
+}
+
 @media (max-width: 640px) {
   .metrics-grid {
     grid-template-columns: 1fr;
+  }
+
+  .auth-panel {
+    padding: 1.2rem;
   }
 }
