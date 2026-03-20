@@ -1,0 +1,9 @@
+[submodule "paperclip"]
+	path = paperclip
+	url = https://github.com/Nuculeus/paperclip.git
+[submodule ".claude/skills/gstack"]
+	path = .claude/skills/gstack
+	url = https://github.com/garrytan/gstack.git
+[submodule "custom-skills/autoresearch"]
+	path = custom-skills/autoresearch
+	url = https://github.com/karpathy/autoresearch.git
