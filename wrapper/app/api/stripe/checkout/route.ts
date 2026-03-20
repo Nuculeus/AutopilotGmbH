@@ -26,8 +26,8 @@ export async function POST(request: Request) {
         quantity: 1,
       },
     ],
-    success_url: `${baseUrl}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/start?checkout=cancelled`,
+    success_url: `${baseUrl}/launch?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/launch?checkout=cancelled`,
     allow_promotion_codes: true,
     metadata: {
       clerkUserId: userId,

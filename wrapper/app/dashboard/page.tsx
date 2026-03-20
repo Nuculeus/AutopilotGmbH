@@ -3,11 +3,20 @@ import { Activity, ArrowRight, BadgeEuro, FileBarChart2, Shield } from "lucide-r
 import { AuthControls } from "../../components/auth-controls";
 import { formatPlanLabel } from "../../lib/credits";
 import { getCurrentUserState } from "../../lib/current-user";
+import { resolveLaunchEntryDecision } from "../../lib/launch-entry";
 import { resolveLaunchFlowState } from "../../lib/launch-flow";
 
 export default async function DashboardPage() {
-  const { creditSummary, autopilotState } = await getCurrentUserState();
+  const { userId, creditSummary, autopilotState } = await getCurrentUserState();
   const flow = resolveLaunchFlowState({
+    availableCredits: creditSummary.availableCredits,
+    plan: creditSummary.plan,
+    companyId: autopilotState.companyId,
+    provisioningStatus: autopilotState.provisioningStatus,
+    canOpenWorkspace: autopilotState.canOpenWorkspace,
+  });
+  const launchEntry = resolveLaunchEntryDecision({
+    userId,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,
@@ -71,12 +80,10 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <form action={flow.primaryAction.href} method={flow.primaryAction.method ?? "GET"}>
-          <button className="primary-cta self-start md:self-auto" type="submit">
-            {flow.primaryAction.label}
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </form>
+        <Link className="primary-cta self-start md:self-auto" href={launchEntry.href}>
+          {launchEntry.label}
+          <ArrowRight className="h-4 w-4" />
+        </Link>
         </div>
       </div>
 

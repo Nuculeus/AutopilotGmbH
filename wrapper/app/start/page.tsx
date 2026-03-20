@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { AuthControls } from "../../components/auth-controls";
 import { formatPlanLabel } from "../../lib/credits";
 import { getCurrentUserState } from "../../lib/current-user";
+import { resolveLaunchEntryDecision } from "../../lib/launch-entry";
 import { resolveLaunchFlowState } from "../../lib/launch-flow";
 
 const checklist = [
@@ -13,8 +14,16 @@ const checklist = [
 ];
 
 export default async function StartPage() {
-  const { creditSummary, autopilotState } = await getCurrentUserState();
+  const { userId, creditSummary, autopilotState } = await getCurrentUserState();
   const flow = resolveLaunchFlowState({
+    availableCredits: creditSummary.availableCredits,
+    plan: creditSummary.plan,
+    companyId: autopilotState.companyId,
+    provisioningStatus: autopilotState.provisioningStatus,
+    canOpenWorkspace: autopilotState.canOpenWorkspace,
+  });
+  const launchEntry = resolveLaunchEntryDecision({
+    userId,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,
@@ -130,6 +139,9 @@ export default async function StartPage() {
             </Link>
             <Link className="secondary-cta" href="/dashboard">
               Dashboard ansehen
+            </Link>
+            <Link className="secondary-cta" href={launchEntry.href}>
+              Zentralen Einstieg öffnen
             </Link>
           </div>
         </aside>

@@ -86,7 +86,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-4 sm:flex-row">
-              <Link className="primary-cta" href="/start">
+              <Link className="primary-cta" href="/launch">
                 Firma starten
                 <ArrowRight className="h-4 w-4" />
               </Link>
