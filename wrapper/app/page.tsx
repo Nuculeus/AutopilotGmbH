@@ -1,65 +1,165 @@
-import Image from "next/image";
+import Link from "next/link";
+import {
+  ArrowRight,
+  BadgeEuro,
+  Building2,
+  FileSpreadsheet,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+
+const pillars = [
+  {
+    title: "Firma starten statt Tools stapeln",
+    description:
+      "AutopilotGmbH provisioniert deine Company, bindet Paperclip an und bringt dich direkt in ein arbeitsfähiges Dashboard.",
+    icon: Building2,
+  },
+  {
+    title: "DSGVO zuerst, nicht nachträglich",
+    description:
+      "Deutsche Prompting-Regeln, Consent-Grenzen und Löschlogik sitzen von Anfang an in der Betriebslogik.",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Umsatz, Rechnungen, DATEV im Blick",
+    description:
+      "Die Produktoberfläche ist für Operatoren gebaut, nicht für Bastler: klare Kennzahlen, klare Zustände, klare Übergaben.",
+    icon: FileSpreadsheet,
+  },
+];
+
+const milestones = [
+  "Landingpage und Billing im Wrapper",
+  "Company-Provisioning Richtung Paperclip",
+  "Runtime-Injection für deutsche Skills",
+  "DATEV- und Report-Outputs im Dashboard",
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="relative overflow-hidden">
+      <div className="hero-glow hero-glow-left" />
+      <div className="hero-glow hero-glow-right" />
+
+      <section className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 pb-16 pt-8 sm:px-10 lg:px-12">
+        <header className="flex items-center justify-between border-b border-[var(--line)] pb-5">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.32em] text-[var(--muted)]">
+              AutopilotGmbH
+            </p>
+            <p className="mt-2 text-sm text-[var(--soft)]">
+              Zero-human company operations for Germany and the EU
+            </p>
+          </div>
+
+          <nav className="hidden items-center gap-3 md:flex">
+            <Link className="nav-link" href="/dashboard">
+              Dashboard
+            </Link>
+            <Link className="nav-link" href="/start">
+              Firma starten
+            </Link>
+          </nav>
+        </header>
+
+        <div className="grid flex-1 gap-12 py-14 lg:grid-cols-[1.25fr_0.75fr] lg:gap-14">
+          <section className="space-y-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white/70 px-3 py-2 backdrop-blur">
+              <Sparkles className="h-4 w-4 text-[var(--accent)]" />
+              <span className="font-mono text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
+                Deutsche Agenten, echte Betriebsoberfläche
+              </span>
+            </div>
+
+            <div className="space-y-6">
+              <h1 className="max-w-4xl text-5xl font-semibold leading-[1.02] tracking-[-0.04em] text-balance sm:text-6xl lg:text-7xl">
+                Starte die Firma nachts. Um 8 Uhr arbeitet das Dashboard schon.
+              </h1>
+              <p className="max-w-2xl text-lg leading-8 text-[var(--soft)] sm:text-xl">
+                Wir bauen die deutsche SaaS-Schicht um Paperclip: Login,
+                Billing, Company-Provisioning und ein Dashboard, das Umsatz,
+                Rechnungen und steuerbare Prozesse sichtbar macht.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <Link className="primary-cta" href="/start">
+                Firma starten
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link className="secondary-cta" href="/dashboard">
+                Preview Dashboard
+              </Link>
+            </div>
+
+            <div className="grid gap-4 pt-4 md:grid-cols-3">
+              {pillars.map(({ title, description, icon: Icon }) => (
+                <article key={title} className="surface-card space-y-4">
+                  <div className="icon-chip">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-2">
+                    <h2 className="text-lg font-semibold tracking-[-0.02em]">
+                      {title}
+                    </h2>
+                    <p className="text-sm leading-7 text-[var(--soft)]">
+                      {description}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <aside className="panel-shell">
+            <div className="panel-header">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
+                  Mitternachts-Sprint
+                </p>
+                <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">
+                  Der operative Kern
+                </h2>
+              </div>
+              <div className="status-pill">
+                <BadgeEuro className="h-4 w-4" />
+                Umsatzbereit
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {milestones.map((milestone, index) => (
+                <div key={milestone} className="milestone-row">
+                  <span className="milestone-index">0{index + 1}</span>
+                  <p className="text-sm leading-7 text-[var(--soft)]">
+                    {milestone}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="metrics-grid">
+              <div className="metric-block">
+                <span className="metric-label">Company Scope</span>
+                <strong className="metric-value">isoliert</strong>
+              </div>
+              <div className="metric-block">
+                <span className="metric-label">Hosting</span>
+                <strong className="metric-value">EU only</strong>
+              </div>
+              <div className="metric-block">
+                <span className="metric-label">Prompt Layer</span>
+                <strong className="metric-value">DE + DSGVO</strong>
+              </div>
+              <div className="metric-block">
+                <span className="metric-label">Go-live Ziel</span>
+                <strong className="metric-value">08:00</strong>
+              </div>
+            </div>
+          </aside>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
