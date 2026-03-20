@@ -171,7 +171,10 @@ git commit -m "feat: add provisioning state guards"
 - Create: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/wrapper/tests/paperclip-provisioning.test.ts`
 - Create: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/wrapper/lib/paperclip-admin.ts`
 - Create: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/wrapper/app/api/companies/provision/route.ts`
+- Create: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/paperclip/server/src/routes/internal.ts`
+- Create: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/paperclip/server/src/middleware/internal-auth.ts`
 - Modify: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/wrapper/lib/autopilot-metadata.ts`
+- Modify: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/paperclip/server/src/app.ts`
 - Modify: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/.env.example`
 - Reference: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/paperclip/server/src/routes/companies.ts`
 - Reference: `/Users/aibase/Documents/AI Comp/WRAP/.worktrees/codex-wrapper-foundation/paperclip/server/src/services/access.ts`
@@ -201,23 +204,31 @@ Expected: FAIL because the admin client and provisioning route do not exist.
 
 Create a narrow wrapper-side client with only the launch methods:
 
-- `createCompany`
+- `bootstrapCompany`
 - `getCompany`
-- `ensureMembership` or the smallest equivalent bridge call discovered during implementation
 
 Gate it behind env configuration instead of spreading raw fetch logic across routes.
 
-- [ ] **Step 4: Implement the provisioning route with idempotency**
+- [ ] **Step 4: Add the Paperclip internal bootstrap route**
+
+Implement a dedicated internal Paperclip route factory mounted under `/api/internal` that:
+
+- requires an internal bridge secret
+- creates the company using existing service-layer APIs
+- assigns a stable bridge principal such as `clerk:<userId>` as company owner
+- performs launch bootstrap work without overloading public company routes
+
+- [ ] **Step 5: Implement the wrapper provisioning route with idempotency**
 
 The route should:
 
 - require Clerk auth
 - reject users without available credits or paid access
 - no-op if the user already has an active company mapping
-- create the Paperclip company through the admin bridge
+- call the Paperclip internal bootstrap route
 - persist `companyId`, `companyName`, and `provisioningStatus` back to wrapper-owned metadata
 
-- [ ] **Step 5: Verify tests and app build**
+- [ ] **Step 6: Verify tests and app build**
 
 Run:
 
@@ -228,13 +239,20 @@ pnpm lint
 pnpm build
 ```
 
-Expected: provisioning tests PASS, lint PASS, build PASS.
+Then run a targeted Paperclip check:
 
-- [ ] **Step 6: Commit**
+```bash
+cd /Users/aibase/Documents/AI\ Comp/WRAP/.worktrees/codex-wrapper-foundation/paperclip
+pnpm test -- --runInBand internal
+```
+
+Expected: provisioning tests PASS, lint PASS, build PASS, and the Paperclip internal route compiles or passes its targeted test.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 cd /Users/aibase/Documents/AI\ Comp/WRAP/.worktrees/codex-wrapper-foundation
-git add wrapper/tests/paperclip-provisioning.test.ts wrapper/lib/paperclip-admin.ts wrapper/app/api/companies/provision/route.ts wrapper/lib/autopilot-metadata.ts .env.example
+git add wrapper/tests/paperclip-provisioning.test.ts wrapper/lib/paperclip-admin.ts wrapper/app/api/companies/provision/route.ts wrapper/lib/autopilot-metadata.ts paperclip/server/src/routes/internal.ts paperclip/server/src/middleware/internal-auth.ts paperclip/server/src/app.ts .env.example
 git commit -m "feat: add paperclip provisioning route"
 ```
 
@@ -327,6 +345,7 @@ Define the bridge guarantees:
 it("rejects proxy requests when the signed-in user has no active company", async () => {});
 it("forwards allowed paperclip paths for the mapped company only", async () => {});
 it("never trusts client-supplied companyId query parameters", async () => {});
+it("authenticates proxied workspace requests as the stable bridge principal for that user", async () => {});
 ```
 
 - [ ] **Step 2: Run the tests and confirm the bridge is missing**
@@ -347,6 +366,7 @@ Start with a strict allowlist of launch routes and asset patterns only. The help
 - resolve current user state
 - derive the mapped company from metadata
 - inject wrapper-controlled auth toward Paperclip
+- identify the user as the same stable bridge principal created during bootstrap
 - reject any path outside the launch workspace surface
 
 - [ ] **Step 4: Connect the app routes to the bridge**
