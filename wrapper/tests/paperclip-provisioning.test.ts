@@ -116,6 +116,46 @@ describe("POST /api/companies/provision", () => {
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
   });
 
+  it("redirects browser form submissions back into the launch flow after provisioning", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotCredits: {
+          plan: "free",
+        },
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          paperclipCompanyId: "cmp_123",
+          companyName: "Meine Autopilot GmbH",
+          bridgePrincipalId: "clerk:user_123",
+          status: "bootstrapped",
+        }),
+      }),
+    );
+
+    const { POST } = await import("@/app/api/companies/provision/route");
+    const response = await POST(
+      new Request("http://localhost/api/companies/provision", {
+        method: "POST",
+        headers: {
+          Accept: "text/html,application/xhtml+xml",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "",
+      }),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("http://localhost/launch");
+  });
+
   it("marks provisioning as failed when paperclip creation errors", async () => {
     authMock.mockResolvedValue({ userId: "user_123" });
     getUserMock.mockResolvedValue({

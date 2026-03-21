@@ -3,6 +3,22 @@ import { NextResponse } from "next/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
 import { bootstrapCompany } from "@/lib/paperclip-admin";
 
+function isBrowserNavigation(request: Request) {
+  const accept = request.headers.get("accept") ?? "";
+  const contentType = request.headers.get("content-type") ?? "";
+  const secFetchMode = request.headers.get("sec-fetch-mode") ?? "";
+
+  return (
+    accept.includes("text/html") ||
+    contentType.includes("application/x-www-form-urlencoded") ||
+    secFetchMode === "navigate"
+  );
+}
+
+function redirectToLaunch(request: Request) {
+  return NextResponse.redirect(new URL("/launch", request.url), { status: 303 });
+}
+
 export async function POST(request: Request) {
   const { userId } = await auth();
 
@@ -13,14 +29,17 @@ export async function POST(request: Request) {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
+  const browserNavigation = isBrowserNavigation(request);
 
   if (autopilotState.companyId && autopilotState.provisioningStatus === "active") {
-    return NextResponse.json({
+    const payload = {
       paperclipCompanyId: autopilotState.companyId,
       companyName: autopilotState.companyName,
       bridgePrincipalId: autopilotState.bridgePrincipalId,
       status: "existing",
-    });
+    };
+
+    return browserNavigation ? redirectToLaunch(request) : NextResponse.json(payload);
   }
 
   if (autopilotState.creditSummary.availableCredits <= 0) {
@@ -71,7 +90,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(result);
+    return browserNavigation ? redirectToLaunch(request) : NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Paperclip bootstrap failed";
 
