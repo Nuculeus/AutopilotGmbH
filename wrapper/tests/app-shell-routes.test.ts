@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildAppShellModel } from "@/lib/app-shell";
+import { EMPTY_COMPANY_HQ_PROFILE } from "@/lib/company-hq";
 
 describe("buildAppShellModel", () => {
   it("renders the launch navigation structure", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
+      companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
       creditSummary: {
         availableCredits: 120,
         plan: "launch",
@@ -30,6 +32,7 @@ describe("buildAppShellModel", () => {
   it("shows credit and trial state from server data", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
+      companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -51,6 +54,7 @@ describe("buildAppShellModel", () => {
   it("blocks workspace routes when provisioning is not active", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
+      companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
       creditSummary: {
         availableCredits: 20,
         plan: "launch",
@@ -71,6 +75,7 @@ describe("buildAppShellModel", () => {
   it("switches chat into focus mode with a compact next step", () => {
     const model = buildAppShellModel({
       currentPath: "/app/chat",
+      companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -94,9 +99,59 @@ describe("buildAppShellModel", () => {
     ]);
   });
 
+  it("turns chat into a guided continuation of the saved briefing", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/chat",
+      companyHqProfile: {
+        companyGoal: "Wir bauen einen KI-gestuetzten Telefonservice fuer regionale Dienstleister.",
+        offer: "Voice-Rezeption mit Terminhandling und Lead-Qualifizierung.",
+        audience: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
+        tone: "klar, deutsch, vertrauenswuerdig",
+        priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        updatedAt: "2026-03-21T12:00:00.000Z",
+      },
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+    });
+
+    expect(model.page.title).toBe("Dein Arbeitsbereich ist bereit");
+    expect(model.nextStep.title).toBe("Erste Verbindungen anschließen");
+    expect(model.nextStep.href).toBe("/app/connections");
+    expect(model.checklist).toEqual([
+      "Briefing gespeichert",
+      "Workspace verbunden",
+      "Nächster Schritt: Verbindungen anschließen",
+    ]);
+    expect(model.workspaceHandoff?.headline).toBe("Deine Richtung steht. Jetzt geht es in die Ausführung.");
+    expect(model.workspaceHandoff?.highlights).toEqual([
+      {
+        label: "Angebot",
+        value: "Voice-Rezeption mit Terminhandling und Lead-Qualifizierung.",
+      },
+      {
+        label: "Zielgruppe",
+        value: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
+      },
+      {
+        label: "Nächster Fokus",
+        value: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+      },
+    ]);
+  });
+
   it("guides company hq toward the next operational setup step", () => {
     const model = buildAppShellModel({
       currentPath: "/app/company-hq",
+      companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -118,6 +173,7 @@ describe("buildAppShellModel", () => {
   it("guides connections toward plug-and-play first", () => {
     const model = buildAppShellModel({
       currentPath: "/app/connections",
+      companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -139,6 +195,7 @@ describe("buildAppShellModel", () => {
   it("guides apps toward a first launch-safe starter", () => {
     const model = buildAppShellModel({
       currentPath: "/app/apps",
+      companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
       creditSummary: {
         availableCredits: 20,
         plan: "free",

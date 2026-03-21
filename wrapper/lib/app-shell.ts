@@ -1,8 +1,13 @@
 import { formatPlanLabel, type AutopilotPlan } from "@/lib/credits";
 import type { ProvisioningStatus, WorkspaceStatus } from "@/lib/autopilot-metadata";
+import {
+  hasStoredCompanyHqBriefing,
+  type CompanyHqProfile,
+} from "@/lib/company-hq";
 
 type ShellInput = {
   currentPath: string;
+  companyHqProfile: CompanyHqProfile;
   creditSummary: {
     availableCredits: number;
     plan: AutopilotPlan;
@@ -43,6 +48,18 @@ export type AppShellModel = {
     description: string;
   };
   checklist: string[];
+  workspaceHandoff: {
+    headline: string;
+    summary: string;
+    highlights: Array<{
+      label: string;
+      value: string;
+    }>;
+    actions: Array<{
+      label: string;
+      href: string;
+    }>;
+  } | null;
 };
 
 const navigation: AppNavigationItem[] = [
@@ -149,6 +166,76 @@ function pageCopyForPath(currentPath: string) {
   }
 }
 
+function buildWorkspaceHandoff(profile: CompanyHqProfile) {
+  const hasBriefing = hasStoredCompanyHqBriefing(profile);
+
+  if (!hasBriefing) {
+    return {
+      page: {
+        eyebrow: "Launch Workspace",
+        title: "Operativer Arbeitsbereich",
+        description:
+          "Die native Launch-Shell rahmt die nächsten produktiven Bereiche ein und schafft die deutsche Betriebsoberfläche.",
+      },
+      nextStep: {
+        title: "Unternehmenswissen festhalten",
+        href: "/app/company-hq",
+        description:
+          "Lege Ziele, Positionierung und Kernwissen an, damit deine Operatoren sinnvoll arbeiten koennen.",
+      },
+      checklist: [
+        "Firma aktiv",
+        "Workspace verbunden",
+        "Nächster Schritt: Unternehmenswissen hinterlegen",
+      ],
+      handoff: {
+        headline: "Firma aktiv. Workspace verbunden.",
+        summary:
+          "Als Nächstes Unternehmenswissen festhalten oder Verbindungen anschließen.",
+        highlights: [],
+        actions: [
+          { label: "Company HQ", href: "/app/company-hq" },
+          { label: "Verbindungen", href: "/app/connections" },
+        ],
+      },
+    };
+  }
+
+  return {
+    page: {
+      eyebrow: "Launch Workspace",
+      title: "Dein Arbeitsbereich ist bereit",
+      description:
+        "Dein Profil steht. Jetzt setzt du daraus die ersten operativen Schritte, Verbindungen und Ergebnisse um.",
+    },
+    nextStep: {
+      title: "Erste Verbindungen anschließen",
+      href: "/app/connections",
+      description:
+        "Verbinde jetzt die Werkzeuge, die zu deinem Angebot und deiner Zielgruppe passen, damit deine Firma sofort handeln kann.",
+    },
+    checklist: [
+      "Briefing gespeichert",
+      "Workspace verbunden",
+      "Nächster Schritt: Verbindungen anschließen",
+    ],
+    handoff: {
+      headline: "Deine Richtung steht. Jetzt geht es in die Ausführung.",
+      summary:
+        "Du startest nicht mehr bei null. Der Workspace übernimmt jetzt die Schwerpunkte, die du im Onboarding festgelegt hast.",
+      highlights: [
+        { label: "Angebot", value: profile.offer },
+        { label: "Zielgruppe", value: profile.audience },
+        { label: "Nächster Fokus", value: profile.priorities },
+      ],
+      actions: [
+        { label: "Firmenprofil prüfen", href: "/app/company-hq" },
+        { label: "Verbindungen anschließen", href: "/app/connections" },
+      ],
+    },
+  };
+}
+
 function blockedMessageForStatus(status: ProvisioningStatus) {
   switch (status) {
     case "pending":
@@ -165,15 +252,17 @@ function blockedMessageForStatus(status: ProvisioningStatus) {
 export function buildAppShellModel(input: ShellInput): AppShellModel {
   const canOpenWorkspace = input.autopilotState.canOpenWorkspace;
   const isChatFocus = input.currentPath === "/app/chat";
-  const pageCopy = pageCopyForPath(input.currentPath);
+  const pageCopy = isChatFocus
+    ? buildWorkspaceHandoff(input.companyHqProfile)
+    : pageCopyForPath(input.currentPath);
 
   return {
     navigation,
     layoutMode: isChatFocus ? "focus" : "default",
     page: {
-      eyebrow: pageCopy.eyebrow,
-      title: pageCopy.title,
-      description: pageCopy.description,
+      eyebrow: "page" in pageCopy ? pageCopy.page.eyebrow : pageCopy.eyebrow,
+      title: "page" in pageCopy ? pageCopy.page.title : pageCopy.title,
+      description: "page" in pageCopy ? pageCopy.page.description : pageCopy.description,
     },
     access: canOpenWorkspace ? "ready" : "blocked",
     blockedMessage: canOpenWorkspace
@@ -187,5 +276,6 @@ export function buildAppShellModel(input: ShellInput): AppShellModel {
     },
     nextStep: pageCopy.nextStep,
     checklist: pageCopy.checklist,
+    workspaceHandoff: "handoff" in pageCopy ? pageCopy.handoff : null,
   };
 }
