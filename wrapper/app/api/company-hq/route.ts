@@ -1,15 +1,17 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { normalizeCompanyHqProfile } from "@/lib/company-hq";
 
-const companyHqSchema = z.object({
-  companyGoal: z.string().trim().min(1),
-  offer: z.string().trim().min(1),
-  audience: z.string().trim().min(1),
-  tone: z.string().trim().min(1),
-  priorities: z.string().trim().min(1),
-});
+function readRequiredField(body: unknown, key: string) {
+  const value = body && typeof body === "object" ? (body as Record<string, unknown>)[key] : undefined;
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -19,11 +21,17 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const parsed = companyHqSchema.safeParse(body);
+  const nextInput = {
+    companyGoal: readRequiredField(body, "companyGoal"),
+    offer: readRequiredField(body, "offer"),
+    audience: readRequiredField(body, "audience"),
+    tone: readRequiredField(body, "tone"),
+    priorities: readRequiredField(body, "priorities"),
+  };
 
-  if (!parsed.success) {
+  if (Object.values(nextInput).some((value) => value === null)) {
     return NextResponse.json(
-      { error: "Invalid Company HQ payload", details: parsed.error.flatten() },
+      { error: "Invalid Company HQ payload" },
       { status: 400 },
     );
   }
@@ -33,7 +41,7 @@ export async function POST(request: Request) {
   const current = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
   const nextProfile = {
     ...current,
-    ...parsed.data,
+    ...nextInput,
     updatedAt: new Date().toISOString(),
   };
 
