@@ -2,15 +2,9 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { normalizeCompanyHqProfile } from "@/lib/company-hq";
 
-function readRequiredField(body: unknown, key: string) {
+function readField(body: unknown, key: string) {
   const value = body && typeof body === "object" ? (body as Record<string, unknown>)[key] : undefined;
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export async function POST(request: Request) {
@@ -22,14 +16,14 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const nextInput = {
-    companyGoal: readRequiredField(body, "companyGoal"),
-    offer: readRequiredField(body, "offer"),
-    audience: readRequiredField(body, "audience"),
-    tone: readRequiredField(body, "tone"),
-    priorities: readRequiredField(body, "priorities"),
+    companyGoal: readField(body, "companyGoal"),
+    offer: readField(body, "offer"),
+    audience: readField(body, "audience"),
+    tone: readField(body, "tone"),
+    priorities: readField(body, "priorities"),
   };
 
-  if (Object.values(nextInput).some((value) => value === null)) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json(
       { error: "Invalid Company HQ payload" },
       { status: 400 },

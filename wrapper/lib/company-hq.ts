@@ -7,7 +7,7 @@ export type CompanyHqProfile = {
   updatedAt: string | null;
 };
 
-const EMPTY_PROFILE: CompanyHqProfile = {
+export const EMPTY_COMPANY_HQ_PROFILE: CompanyHqProfile = {
   companyGoal: "",
   offer: "",
   audience: "",
@@ -22,7 +22,7 @@ function asString(value: unknown) {
 
 export function normalizeCompanyHqProfile(value: unknown): CompanyHqProfile {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return EMPTY_PROFILE;
+    return EMPTY_COMPANY_HQ_PROFILE;
   }
 
   const source = value as Record<string, unknown>;
@@ -35,4 +35,12 @@ export function normalizeCompanyHqProfile(value: unknown): CompanyHqProfile {
     priorities: asString(source.priorities),
     updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : null,
   };
+}
+
+export function hasStoredCompanyHqBriefing(value: unknown) {
+  const profile = normalizeCompanyHqProfile(value);
+
+  return [profile.companyGoal, profile.offer, profile.audience, profile.priorities].every(
+    (field) => field.trim().length > 0,
+  );
 }

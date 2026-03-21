@@ -5,6 +5,7 @@ describe("resolveLaunchEntryDecision", () => {
   it("lets a new user move from sign-in to start flow and finally into the workspace", () => {
     const unauthenticated = resolveLaunchEntryDecision({
       userId: null,
+      hasCompanyHqBriefing: false,
       availableCredits: 0,
       plan: "free",
       companyId: null,
@@ -17,6 +18,7 @@ describe("resolveLaunchEntryDecision", () => {
 
     const readyToProvision = resolveLaunchEntryDecision({
       userId: "user_123",
+      hasCompanyHqBriefing: true,
       availableCredits: 120,
       plan: "launch",
       companyId: null,
@@ -29,6 +31,7 @@ describe("resolveLaunchEntryDecision", () => {
 
     const workspaceReady = resolveLaunchEntryDecision({
       userId: "user_123",
+      hasCompanyHqBriefing: true,
       availableCredits: 118,
       plan: "launch",
       companyId: "cmp_123",
@@ -43,6 +46,7 @@ describe("resolveLaunchEntryDecision", () => {
   it("sends a paid user without a company into provisioning before workspace access", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
+      hasCompanyHqBriefing: true,
       availableCredits: 50,
       plan: "starter",
       companyId: null,
@@ -57,6 +61,7 @@ describe("resolveLaunchEntryDecision", () => {
   it("keeps a failed provisioning user on wrapper-owned recovery UI", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
+      hasCompanyHqBriefing: true,
       availableCredits: 20,
       plan: "launch",
       companyId: null,
@@ -66,5 +71,20 @@ describe("resolveLaunchEntryDecision", () => {
 
     expect(decision.step).toBe("recovery");
     expect(decision.href).toBe("/start?entry=recovery");
+  });
+
+  it("routes a signed-in user without a saved briefing into guided onboarding before provisioning", () => {
+    const decision = resolveLaunchEntryDecision({
+      userId: "user_123",
+      hasCompanyHqBriefing: false,
+      availableCredits: 120,
+      plan: "launch",
+      companyId: null,
+      provisioningStatus: "not_started",
+      canOpenWorkspace: false,
+    });
+
+    expect(decision.step).toBe("briefing");
+    expect(decision.href).toBe("/onboarding");
   });
 });

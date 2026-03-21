@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { AuthControls } from "../../components/auth-controls";
 import { formatPlanLabel } from "../../lib/credits";
@@ -7,14 +8,19 @@ import { resolveLaunchEntryDecision } from "../../lib/launch-entry";
 import { resolveLaunchFlowState } from "../../lib/launch-flow";
 
 const checklist = [
-  "Clerk Account vorhanden oder Sign-up abgeschlossen",
-  "Stripe Plan ausgewählt und Checkout bereit",
-  "Company-Slug und Name validiert",
-  "Paperclip Provisioning-Bridge erreichbar",
+  "Aufbauprofil gespeichert und Firmenkern geklärt",
+  "Credits oder Plan aktiviert",
+  "Provisioning-Bridge erreichbar",
+  "Workspace-Handoff vorbereitet",
 ];
 
 export default async function StartPage() {
-  const { userId, creditSummary, autopilotState } = await getCurrentUserState();
+  const { userId, hasCompanyHqBriefing, creditSummary, autopilotState } = await getCurrentUserState();
+
+  if (userId && !hasCompanyHqBriefing && !autopilotState.companyId && autopilotState.provisioningStatus === "not_started") {
+    redirect("/onboarding");
+  }
+
   const flow = resolveLaunchFlowState({
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
@@ -24,6 +30,7 @@ export default async function StartPage() {
   });
   const launchEntry = resolveLaunchEntryDecision({
     userId,
+    hasCompanyHqBriefing,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,
@@ -50,13 +57,12 @@ export default async function StartPage() {
         <article className="space-y-6">
           <div className="space-y-4">
             <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              Der Startfluss für neue Companies
+              Credits und Provisioning freischalten
             </h1>
             <p className="max-w-2xl text-base leading-8 text-[var(--soft)]">
-              Diese Route wird der Einstiegspunkt für Clerk, Stripe und die
-              eigentliche Provisionierung in Paperclip. Im Moment markieren wir
-              hier bewusst den Handoff, den wir als Nächstes technisch
-              verdrahten.
+              Dein Aufbauprofil ist gespeichert. Jetzt aktivieren wir Credits,
+              Billing und die eigentliche Provisionierung in Paperclip, damit
+              deine Arbeitsfläche betriebsbereit wird.
             </p>
           </div>
 

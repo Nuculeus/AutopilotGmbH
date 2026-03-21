@@ -685,6 +685,40 @@ a {
   flex-wrap: wrap;
 }
 
+.guided-onboarding-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.guided-onboarding-idea-box {
+  margin-top: 1rem;
+}
+
+.guided-onboarding-idea {
+  width: 100%;
+  min-height: 9.5rem;
+  resize: vertical;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1rem 1.05rem;
+  color: rgba(245, 243, 239, 0.94);
+  outline: none;
+}
+
+.guided-onboarding-idea::placeholder {
+  color: rgba(245, 243, 239, 0.38);
+}
+
+.app-onboarding-title {
+  font-size: clamp(2.5rem, 4vw, 4rem);
+  line-height: 0.98;
+}
+
+.app-onboarding-copy {
+  max-width: 48rem;
+}
+
 .guided-form {
   margin-top: 1.4rem;
   display: grid;

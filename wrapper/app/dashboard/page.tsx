@@ -7,7 +7,7 @@ import { resolveLaunchEntryDecision } from "../../lib/launch-entry";
 import { resolveLaunchFlowState } from "../../lib/launch-flow";
 
 export default async function DashboardPage() {
-  const { userId, creditSummary, autopilotState } = await getCurrentUserState();
+  const { userId, hasCompanyHqBriefing, creditSummary, autopilotState } = await getCurrentUserState();
   const flow = resolveLaunchFlowState({
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
@@ -17,6 +17,7 @@ export default async function DashboardPage() {
   });
   const launchEntry = resolveLaunchEntryDecision({
     userId,
+    hasCompanyHqBriefing,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,

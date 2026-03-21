@@ -61,4 +61,44 @@ describe("POST /api/company-hq", () => {
       }),
     );
   });
+
+  it("allows partial saves and keeps optional fields empty", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {},
+      privateMetadata: {},
+    });
+
+    const { POST } = await import("@/app/api/company-hq/route");
+    const response = await POST(
+      new Request("http://localhost/api/company-hq", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          companyGoal: "Wir bauen KI-Agenten fuer regionale Unternehmen.",
+          offer: "Voice-Rezeption und Auftragsmanagement.",
+          audience: "KMU in DACH.",
+          tone: "",
+          priorities: "Ersten Use Case bauen und verkaufen.",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        privateMetadata: expect.objectContaining({
+          autopilotCompanyHq: expect.objectContaining({
+            companyGoal: "Wir bauen KI-Agenten fuer regionale Unternehmen.",
+            tone: "",
+            priorities: "Ersten Use Case bauen und verkaufen.",
+          }),
+        }),
+      }),
+    );
+  });
 });

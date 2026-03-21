@@ -1,4 +1,7 @@
+import type { CompanyHqProfile } from "@/lib/company-hq";
+
 export type GuidedSection = {
+  field: Exclude<keyof CompanyHqProfile, "updatedAt">;
   title: string;
   prompt: string;
   helper: string;
@@ -21,26 +24,31 @@ export type AppStarterTemplate = {
 
 export const companyHqSetupSections: GuidedSection[] = [
   {
+    field: "companyGoal",
     title: "Wofür gibt es diese Firma?",
     prompt: "Beschreibe in einem Satz das Hauptziel deiner Firma.",
     helper: "Beispiel: Wir automatisieren Kundensupport für kleine E-Commerce-Marken in DACH.",
   },
   {
+    field: "offer",
     title: "Was verkauft oder liefert sie?",
     prompt: "Formuliere das Angebot so, dass ein Außenstehender es sofort versteht.",
     helper: "Beispiel: Wir bauen Landingpages, qualifizieren Leads und liefern wöchentliche Wachstumsreports.",
   },
   {
+    field: "audience",
     title: "Für wen ist sie gedacht?",
     prompt: "Nenne die wichtigste Zielgruppe oder den Zielkunden.",
     helper: "Beispiel: Solo-Selbstständige, KMU oder Agenturen im deutschsprachigen Raum.",
   },
   {
+    field: "tone",
     title: "Wie soll sie auftreten?",
     prompt: "Lege Tonalität und Markenstil in wenigen Worten fest.",
     helper: "Beispiel: Klar, vertrauenswürdig, deutsch, pragmatisch, ohne Buzzword-Sprache.",
   },
   {
+    field: "priorities",
     title: "Was ist jetzt am wichtigsten?",
     prompt: "Definiere die drei Prioritäten der nächsten 30 Tage.",
     helper: "Beispiel: erste Kunden gewinnen, Zahlungsfluss einrichten, Website live bringen.",

@@ -3,9 +3,10 @@ import { getCurrentUserState } from "@/lib/current-user";
 import { resolveLaunchEntryDecision } from "@/lib/launch-entry";
 
 export default async function LaunchEntryPage() {
-  const { userId, creditSummary, autopilotState } = await getCurrentUserState();
+  const { userId, hasCompanyHqBriefing, creditSummary, autopilotState } = await getCurrentUserState();
   const decision = resolveLaunchEntryDecision({
     userId,
+    hasCompanyHqBriefing,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,

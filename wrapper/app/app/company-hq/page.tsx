@@ -1,5 +1,4 @@
 import { CompanyHqForm } from "@/components/company-hq-form";
-import { normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { BridgeError, type PaperclipDashboardSummary, readPaperclipBridgeJson } from "@/lib/paperclip-bridge";
 import { getCurrentUserState } from "@/lib/current-user";
 import { companyHqSetupSections } from "@/lib/guided-launch";
@@ -13,9 +12,7 @@ function formatCurrency(cents: number) {
 
 async function loadState() {
   const state = await getCurrentUserState();
-  const companyProfile = normalizeCompanyHqProfile(
-    state.user?.privateMetadata?.autopilotCompanyHq,
-  );
+  const companyProfile = state.companyHqProfile;
   if (!state.userId) {
     return { autopilotState: state.autopilotState, companyProfile, summary: null };
   }
@@ -47,12 +44,12 @@ export default async function AppCompanyHqPage() {
           {autopilotState.companyName ?? "Noch keine Company aktiv"}
         </h2>
         <p className="app-surface-copy">
-          Beschreibe deine Firma einmal klar, damit Operatoren, Automationen und
-          spätere Apps mit einem konsistenten Verständnis arbeiten.
+          Schärfe hier Ziel, Angebot, Zielgruppe und Prioritäten weiter, damit
+          Operatoren, Automationen und spätere Apps konsistent arbeiten.
         </p>
         <div className="guided-action-row">
           <a className="app-primary-cta" href="/app/chat">
-            Im Workspace ausarbeiten
+            Im Workspace weiterdenken
           </a>
           <a className="workspace-launch-link" href="/app/connections">
             Danach Verbindungen anschließen

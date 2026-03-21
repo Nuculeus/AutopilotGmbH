@@ -4,6 +4,7 @@ import { resolveLaunchFlowState } from "@/lib/launch-flow";
 
 export type LaunchEntryStep =
   | "sign_in"
+  | "briefing"
   | "billing"
   | "provision"
   | "provision_pending"
@@ -18,6 +19,7 @@ export type LaunchEntryDecision = {
 
 type LaunchEntryInput = {
   userId: string | null;
+  hasCompanyHqBriefing: boolean;
   availableCredits: number;
   plan: AutopilotPlan;
   companyId: string | null;
@@ -33,6 +35,14 @@ export function resolveLaunchEntryDecision(
       step: "sign_in",
       href: "/sign-in?redirect_url=%2Flaunch",
       label: "Einloggen und weiter",
+    };
+  }
+
+  if (!input.companyId && input.provisioningStatus === "not_started" && !input.hasCompanyHqBriefing) {
+    return {
+      step: "briefing",
+      href: "/onboarding",
+      label: "Aufbau klarziehen",
     };
   }
 
