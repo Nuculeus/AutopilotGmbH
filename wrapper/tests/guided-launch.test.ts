@@ -16,11 +16,11 @@ describe("guided launch content", () => {
     ]);
   });
 
-  it("prioritizes the first three launch-safe connections", () => {
+  it("prioritizes the first three launch-safe model connections", () => {
     expect(priorityConnectionTemplates.map((item) => item.id)).toEqual([
-      "stripe",
+      "openai",
       "anthropic",
-      "google",
+      "gemini",
     ]);
   });
 

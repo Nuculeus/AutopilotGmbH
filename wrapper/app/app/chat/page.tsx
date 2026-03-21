@@ -3,10 +3,11 @@ import { buildAppShellModel } from "@/lib/app-shell";
 import { getCurrentUserState } from "@/lib/current-user";
 
 export default async function AppChatPage() {
-  const { creditSummary, autopilotState, companyHqProfile } = await getCurrentUserState();
+  const { creditSummary, autopilotState, companyHqProfile, hasLlmConnection } = await getCurrentUserState();
   const model = buildAppShellModel({
     currentPath: "/app/chat",
     companyHqProfile,
+    hasLlmConnection,
     creditSummary: {
       availableCredits: creditSummary.availableCredits,
       plan: creditSummary.plan,
@@ -19,6 +20,10 @@ export default async function AppChatPage() {
       canOpenWorkspace: autopilotState.canOpenWorkspace,
     },
   });
+
+  if (model.access === "blocked") {
+    return null;
+  }
 
   return <WorkspaceHostFrame handoff={model.workspaceHandoff} />;
 }

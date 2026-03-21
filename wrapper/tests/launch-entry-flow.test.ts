@@ -6,6 +6,7 @@ describe("resolveLaunchEntryDecision", () => {
     const unauthenticated = resolveLaunchEntryDecision({
       userId: null,
       hasCompanyHqBriefing: false,
+      hasLlmConnection: false,
       availableCredits: 0,
       plan: "free",
       companyId: null,
@@ -19,6 +20,7 @@ describe("resolveLaunchEntryDecision", () => {
     const readyToProvision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
+      hasLlmConnection: false,
       availableCredits: 120,
       plan: "launch",
       companyId: null,
@@ -32,6 +34,7 @@ describe("resolveLaunchEntryDecision", () => {
     const workspaceReady = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
+      hasLlmConnection: true,
       availableCredits: 118,
       plan: "launch",
       companyId: "cmp_123",
@@ -47,6 +50,7 @@ describe("resolveLaunchEntryDecision", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
+      hasLlmConnection: false,
       availableCredits: 50,
       plan: "starter",
       companyId: null,
@@ -62,6 +66,7 @@ describe("resolveLaunchEntryDecision", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
+      hasLlmConnection: false,
       availableCredits: 20,
       plan: "launch",
       companyId: null,
@@ -77,6 +82,7 @@ describe("resolveLaunchEntryDecision", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: false,
+      hasLlmConnection: false,
       availableCredits: 120,
       plan: "launch",
       companyId: null,
@@ -86,5 +92,21 @@ describe("resolveLaunchEntryDecision", () => {
 
     expect(decision.step).toBe("briefing");
     expect(decision.href).toBe("/onboarding");
+  });
+
+  it("routes a provisioned user without an llm connection into connections before workspace", () => {
+    const decision = resolveLaunchEntryDecision({
+      userId: "user_123",
+      hasCompanyHqBriefing: true,
+      hasLlmConnection: false,
+      availableCredits: 118,
+      plan: "launch",
+      companyId: "cmp_123",
+      provisioningStatus: "active",
+      canOpenWorkspace: true,
+    });
+
+    expect(decision.step).toBe("connections");
+    expect(decision.href).toBe("/app/connections");
   });
 });

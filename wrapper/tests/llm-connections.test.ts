@@ -1,0 +1,104 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildAgentConfigWithLlmSecret,
+  hasConnectedLlmProvider,
+  planAgentLlmBindings,
+  resolveLlmProviderFromSecretName,
+} from "@/lib/llm-connections";
+
+describe("llm connections helpers", () => {
+  it("recognizes standard provider keys regardless of casing", () => {
+    expect(resolveLlmProviderFromSecretName("openai_api_key")).toBe("openai");
+    expect(resolveLlmProviderFromSecretName("ANTHROPIC_API_KEY")).toBe("anthropic");
+    expect(resolveLlmProviderFromSecretName("Gemini_Api_Key")).toBe("gemini");
+    expect(resolveLlmProviderFromSecretName("stripe_api_key")).toBe(null);
+  });
+
+  it("detects when a company already has a connected llm provider", () => {
+    expect(
+      hasConnectedLlmProvider([
+        { id: "sec_1", name: "openai_api_key", provider: "local_encrypted" },
+      ]),
+    ).toBe(true);
+
+    expect(
+      hasConnectedLlmProvider([
+        { id: "sec_2", name: "stripe_api_key", provider: "local_encrypted" },
+      ]),
+    ).toBe(false);
+  });
+
+  it("binds an openai secret to codex agents under OPENAI_API_KEY", () => {
+    const nextConfig = buildAgentConfigWithLlmSecret({
+      agentAdapterType: "codex_local",
+      adapterConfig: {
+        model: "gpt-5.4",
+        search: false,
+      },
+      secretId: "sec_openai",
+      secretName: "openai_api_key",
+    });
+
+    expect(nextConfig).toEqual({
+      model: "gpt-5.4",
+      search: false,
+      env: {
+        OPENAI_API_KEY: {
+          type: "secret_ref",
+          secretId: "sec_openai",
+          version: "latest",
+        },
+      },
+    });
+  });
+
+  it("does not bind unrelated secrets to incompatible adapters", () => {
+    expect(
+      buildAgentConfigWithLlmSecret({
+        agentAdapterType: "claude_local",
+        adapterConfig: {},
+        secretId: "sec_openai",
+        secretName: "OPENAI_API_KEY",
+      }),
+    ).toBeNull();
+  });
+
+  it("plans updates only for compatible default agents", () => {
+    const updates = planAgentLlmBindings({
+      secretId: "sec_openai",
+      secretName: "openai_api_key",
+      agents: [
+        {
+          id: "agent_ceo",
+          name: "CEO",
+          role: "ceo",
+          adapterType: "codex_local",
+          adapterConfig: { model: "gpt-5.4" },
+        },
+        {
+          id: "agent_cto",
+          name: "CTO",
+          role: "cto",
+          adapterType: "claude_local",
+          adapterConfig: { model: "claude-sonnet-4-6" },
+        },
+      ],
+    });
+
+    expect(updates).toEqual([
+      {
+        agentId: "agent_ceo",
+        nextAdapterConfig: {
+          model: "gpt-5.4",
+          env: {
+            OPENAI_API_KEY: {
+              type: "secret_ref",
+              secretId: "sec_openai",
+              version: "latest",
+            },
+          },
+        },
+      },
+    ]);
+  });
+});

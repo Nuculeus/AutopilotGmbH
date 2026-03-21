@@ -7,6 +7,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
+      hasLlmConnection: true,
       creditSummary: {
         availableCredits: 120,
         plan: "launch",
@@ -33,6 +34,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
+      hasLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -55,6 +57,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
+      hasLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "launch",
@@ -76,6 +79,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/chat",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
+      hasLlmConnection: true,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -110,6 +114,7 @@ describe("buildAppShellModel", () => {
         priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
         updatedAt: "2026-03-21T12:00:00.000Z",
       },
+      hasLlmConnection: true,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -148,10 +153,41 @@ describe("buildAppShellModel", () => {
     ]);
   });
 
+  it("blocks chat until a runnable llm connection exists", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/chat",
+      companyHqProfile: {
+        companyGoal: "Wir bauen einen KI-gestuetzten Telefonservice fuer regionale Dienstleister.",
+        offer: "Voice-Rezeption mit Terminhandling und Lead-Qualifizierung.",
+        audience: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
+        tone: "klar, deutsch, vertrauenswuerdig",
+        priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        updatedAt: "2026-03-21T12:00:00.000Z",
+      },
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+      hasLlmConnection: false,
+    });
+
+    expect(model.access).toBe("blocked");
+    expect(model.blockedMessage).toContain("Modellzugang");
+    expect(model.nextStep.href).toBe("/app/connections?preset=openai");
+  });
+
   it("guides company hq toward the next operational setup step", () => {
     const model = buildAppShellModel({
       currentPath: "/app/company-hq",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
+      hasLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -174,6 +210,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/connections",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
+      hasLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -196,6 +233,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/apps",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
+      hasLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "free",

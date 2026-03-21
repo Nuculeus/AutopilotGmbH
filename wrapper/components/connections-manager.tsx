@@ -87,12 +87,12 @@ export function ConnectionsManager({
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
         <article className="app-surface-card">
-          <p className="app-surface-eyebrow">Policy</p>
-          <h3 className="app-surface-title">Bring your own accounts</h3>
+          <p className="app-surface-eyebrow">Empfehlung</p>
+          <h3 className="app-surface-title">Zuerst Modellzugang verbinden</h3>
           <p className="app-surface-copy">
-            Stripe, YouTube, HeyGen, Shopify oder Analytics laufen im Launch
-            bewusst über Kunden-Zugänge. So bleiben Poweruser-Kosten nicht auf
-            unserer Instanz hängen.
+            Ohne OpenAI, Anthropic oder Gemini kann dein CEO nicht arbeiten.
+            Verbinde deshalb zuerst den LLM-Zugang und erst danach weitere
+            Werkzeuge wie Stripe, YouTube oder Analytics.
           </p>
         </article>
         <article className="app-surface-card">

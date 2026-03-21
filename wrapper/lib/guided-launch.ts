@@ -57,24 +57,24 @@ export const companyHqSetupSections: GuidedSection[] = [
 
 export const priorityConnectionTemplates: PriorityConnectionTemplate[] = [
   {
-    id: "stripe",
-    label: "Stripe verbinden",
-    description: "Damit deine Firma Zahlungen annehmen und Umsatz sichtbar machen kann.",
-    presetName: "stripe_api_key",
+    id: "openai",
+    label: "OpenAI hinterlegen",
+    description: "Empfohlen für GPT-5.4 und den schnellsten Start deiner ersten Operatoren.",
+    presetName: "openai_api_key",
     providerHint: "local_encrypted",
   },
   {
     id: "anthropic",
     label: "Anthropic hinterlegen",
-    description: "Damit deine Operatoren sofort mit einem echten Modellzugang arbeiten können.",
+    description: "Empfohlen für Claude-Workflows und als zweite starke Modelloption.",
     presetName: "anthropic_api_key",
     providerHint: "local_encrypted",
   },
   {
-    id: "google",
-    label: "Google / Gmail vorbereiten",
-    description: "Damit E-Mail, Kalender und Arbeitskonto früh sauber angebunden werden.",
-    presetName: "google_workspace_oauth",
+    id: "gemini",
+    label: "Gemini hinterlegen",
+    description: "Optional, wenn du Google-Modelle bevorzugst oder mehrere Modellpfade parallel halten willst.",
+    presetName: "gemini_api_key",
     providerHint: "local_encrypted",
   },
 ];

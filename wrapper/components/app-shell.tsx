@@ -47,8 +47,8 @@ export function AppShell({
           </div>
 
           {model.access === "blocked" ? (
-            <Link className="app-primary-cta" href="/start">
-              Provisioning öffnen
+            <Link className="app-primary-cta" href={model.nextStep.href}>
+              {model.nextStep.title}
               <ArrowRight className="h-4 w-4" />
             </Link>
           ) : (

@@ -1,6 +1,8 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
+import { planAgentLlmBindings } from "@/lib/llm-connections";
+import { canTargetCompany, listCompanyAgents, updateAgentAdapterConfig } from "@/lib/paperclip-admin";
 import { BridgeError, bridgePaperclipRequest } from "@/lib/paperclip-bridge";
 
 type RouteContext = {
@@ -33,6 +35,62 @@ function rewriteWorkspaceHtml(html: string) {
         /(["'])\/((?:favicon|apple-touch-icon|android-chrome|site\.webmanifest)[^"']*)/g,
         `$1${WORKSPACE_ASSET_BASE}/$2`,
       ),
+  );
+}
+
+function isSecretCreate(path: string[], method: string) {
+  return path.length === 1 && path[0] === "secrets" && method.toUpperCase() === "POST";
+}
+
+function isSavedSecretPayload(payload: unknown): payload is { id: string; name: string } {
+  return Boolean(
+    payload
+    && typeof payload === "object"
+    && "id" in payload
+    && typeof payload.id === "string"
+    && "name" in payload
+    && typeof payload.name === "string",
+  );
+}
+
+async function bindSavedLlmSecretToCompanyAgents(input: {
+  autopilotState: ReturnType<typeof summarizeAutopilotState>;
+  secret: { id: string; name: string };
+}) {
+  const target = input.autopilotState;
+
+  if (!canTargetCompany(target)) {
+    return;
+  }
+
+  const agents = await listCompanyAgents({
+    companyId: target.companyId,
+    bridgePrincipalId: target.bridgePrincipalId,
+  });
+
+  const updates = planAgentLlmBindings({
+    secretId: input.secret.id,
+    secretName: input.secret.name,
+    agents: agents.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      role: agent.role,
+      adapterType: agent.adapterType,
+      adapterConfig:
+        typeof agent.adapterConfig === "object" && agent.adapterConfig !== null && !Array.isArray(agent.adapterConfig)
+          ? agent.adapterConfig
+          : {},
+    })),
+  });
+
+  await Promise.all(
+    updates.map((update) =>
+      updateAgentAdapterConfig({
+        agentId: update.agentId,
+        bridgePrincipalId: target.bridgePrincipalId,
+        adapterConfig: update.nextAdapterConfig,
+      }),
+    ),
   );
 }
 
@@ -71,6 +129,19 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
         status: upstream.status,
         headers,
       });
+    }
+
+    if (isSecretCreate(path, request.method) && (contentType ?? "").includes("application/json")) {
+      const payload = await upstream.json().catch(() => null);
+
+      if (upstream.ok && isSavedSecretPayload(payload)) {
+        await bindSavedLlmSecretToCompanyAgents({
+          autopilotState,
+          secret: payload,
+        });
+      }
+
+      return NextResponse.json(payload, { status: upstream.status, headers });
     }
 
     return new Response(await upstream.arrayBuffer(), {

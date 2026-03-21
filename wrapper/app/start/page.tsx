@@ -15,7 +15,7 @@ const checklist = [
 ];
 
 export default async function StartPage() {
-  const { userId, hasCompanyHqBriefing, creditSummary, autopilotState } = await getCurrentUserState();
+  const { userId, hasCompanyHqBriefing, hasLlmConnection, creditSummary, autopilotState } = await getCurrentUserState();
 
   if (userId && !hasCompanyHqBriefing && !autopilotState.companyId && autopilotState.provisioningStatus === "not_started") {
     redirect("/onboarding");
@@ -31,6 +31,7 @@ export default async function StartPage() {
   const launchEntry = resolveLaunchEntryDecision({
     userId,
     hasCompanyHqBriefing,
+    hasLlmConnection,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,

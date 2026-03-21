@@ -7,6 +7,7 @@ export type LaunchEntryStep =
   | "briefing"
   | "billing"
   | "provision"
+  | "connections"
   | "provision_pending"
   | "recovery"
   | "workspace";
@@ -20,6 +21,7 @@ export type LaunchEntryDecision = {
 type LaunchEntryInput = {
   userId: string | null;
   hasCompanyHqBriefing: boolean;
+  hasLlmConnection: boolean;
   availableCredits: number;
   plan: AutopilotPlan;
   companyId: string | null;
@@ -56,6 +58,13 @@ export function resolveLaunchEntryDecision(
 
   switch (flow.stage) {
     case "workspace_ready":
+      if (!input.hasLlmConnection) {
+        return {
+          step: "connections",
+          href: "/app/connections",
+          label: "Modellzugang verbinden",
+        };
+      }
       return {
         step: "workspace",
         href: "/app/chat",

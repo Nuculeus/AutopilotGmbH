@@ -8,6 +8,7 @@ import {
 type ShellInput = {
   currentPath: string;
   companyHqProfile: CompanyHqProfile;
+  hasLlmConnection: boolean;
   creditSummary: {
     availableCredits: number;
     plan: AutopilotPlan;
@@ -249,12 +250,31 @@ function blockedMessageForStatus(status: ProvisioningStatus) {
   }
 }
 
+function blockedMessageForMissingLlm() {
+  return "Bevor deine Operatoren arbeiten koennen, brauchst du mindestens einen verbundenen Modellzugang wie OpenAI oder Anthropic.";
+}
+
 export function buildAppShellModel(input: ShellInput): AppShellModel {
   const canOpenWorkspace = input.autopilotState.canOpenWorkspace;
   const isChatFocus = input.currentPath === "/app/chat";
   const pageCopy = isChatFocus
     ? buildWorkspaceHandoff(input.companyHqProfile)
     : pageCopyForPath(input.currentPath);
+  const needsLlmConnection = isChatFocus && canOpenWorkspace && !input.hasLlmConnection;
+  const access = needsLlmConnection ? "blocked" : canOpenWorkspace ? "ready" : "blocked";
+  const blockedMessage = needsLlmConnection
+    ? blockedMessageForMissingLlm()
+    : canOpenWorkspace
+      ? null
+      : blockedMessageForStatus(input.autopilotState.provisioningStatus);
+  const nextStep = needsLlmConnection
+    ? {
+        title: "Modellzugang verbinden",
+        href: "/app/connections?preset=openai",
+        description:
+          "Wähle jetzt deinen bevorzugten LLM-Zugang aus und hinterlege den API-Key, damit CEO und Operatoren sofort lauffähig sind.",
+      }
+    : pageCopy.nextStep;
 
   return {
     navigation,
@@ -264,17 +284,15 @@ export function buildAppShellModel(input: ShellInput): AppShellModel {
       title: "page" in pageCopy ? pageCopy.page.title : pageCopy.title,
       description: "page" in pageCopy ? pageCopy.page.description : pageCopy.description,
     },
-    access: canOpenWorkspace ? "ready" : "blocked",
-    blockedMessage: canOpenWorkspace
-      ? null
-      : blockedMessageForStatus(input.autopilotState.provisioningStatus),
+    access,
+    blockedMessage,
     status: {
       companyLabel: input.autopilotState.companyName ?? "Noch keine Company",
       planLabel: formatPlanLabel(input.creditSummary.plan),
       creditsLabel: `${input.creditSummary.availableCredits} Credits`,
       provisioningLabel: `${input.autopilotState.provisioningStatus} / ${input.autopilotState.workspaceStatus}`,
     },
-    nextStep: pageCopy.nextStep,
+    nextStep,
     checklist: pageCopy.checklist,
     workspaceHandoff: "handoff" in pageCopy ? pageCopy.handoff : null,
   };
