@@ -1,9 +1,17 @@
+import Link from "next/link";
+
 type LaunchStatusPanelProps = {
   companyLabel: string;
   planLabel: string;
   creditsLabel: string;
   provisioningLabel: string;
   checklist: string[];
+  layoutMode?: "default" | "focus";
+  nextStep: {
+    title: string;
+    href: string;
+    description: string;
+  };
 };
 
 export function LaunchStatusPanel({
@@ -12,9 +20,11 @@ export function LaunchStatusPanel({
   creditsLabel,
   provisioningLabel,
   checklist,
+  layoutMode = "default",
+  nextStep,
 }: LaunchStatusPanelProps) {
   return (
-    <aside className="app-rail">
+    <aside className={`app-rail${layoutMode === "focus" ? " app-rail-focus" : ""}`}>
       <div className="app-rail-section">
         <p className="app-rail-eyebrow">Status</p>
         <div className="app-status-grid">
@@ -38,7 +48,18 @@ export function LaunchStatusPanel({
       </div>
 
       <div className="app-rail-section">
-        <p className="app-rail-eyebrow">Getting Started</p>
+        <p className="app-rail-eyebrow">
+          {layoutMode === "focus" ? "Nächster Schritt" : "Getting Started"}
+        </p>
+        {layoutMode === "focus" ? (
+          <div className="app-next-step-card">
+            <strong className="app-checklist-title">{nextStep.title}</strong>
+            <p className="app-checklist-copy">{nextStep.description}</p>
+            <Link className="app-next-step-link" href={nextStep.href}>
+              Jetzt öffnen
+            </Link>
+          </div>
+        ) : null}
         <div className="app-checklist">
           {checklist.map((item, index) => (
             <div key={item} className="app-checklist-item">

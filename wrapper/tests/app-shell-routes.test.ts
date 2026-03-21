@@ -4,6 +4,7 @@ import { buildAppShellModel } from "@/lib/app-shell";
 describe("buildAppShellModel", () => {
   it("renders the launch navigation structure", () => {
     const model = buildAppShellModel({
+      currentPath: "/app/overview",
       creditSummary: {
         availableCredits: 120,
         plan: "launch",
@@ -28,6 +29,7 @@ describe("buildAppShellModel", () => {
 
   it("shows credit and trial state from server data", () => {
     const model = buildAppShellModel({
+      currentPath: "/app/overview",
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -48,6 +50,7 @@ describe("buildAppShellModel", () => {
 
   it("blocks workspace routes when provisioning is not active", () => {
     const model = buildAppShellModel({
+      currentPath: "/app/overview",
       creditSummary: {
         availableCredits: 20,
         plan: "launch",
@@ -63,5 +66,31 @@ describe("buildAppShellModel", () => {
 
     expect(model.access).toBe("blocked");
     expect(model.blockedMessage).toContain("Provisioning");
+  });
+
+  it("switches chat into focus mode with a compact next step", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/chat",
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+    });
+
+    expect(model.layoutMode).toBe("focus");
+    expect(model.nextStep.title).toBe("Unternehmenswissen festhalten");
+    expect(model.nextStep.href).toBe("/app/company-hq");
+    expect(model.checklist).toEqual([
+      "Firma aktiv",
+      "Workspace verbunden",
+      "Nächster Schritt: Unternehmenswissen hinterlegen",
+    ]);
   });
 });

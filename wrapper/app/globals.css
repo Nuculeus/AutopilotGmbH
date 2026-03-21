@@ -301,6 +301,10 @@ a {
   background: rgba(10, 11, 15, 0.88);
 }
 
+.app-sidebar-compact {
+  padding-inline: 0.75rem;
+}
+
 .app-brand {
   border-radius: 1.2rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -336,11 +340,24 @@ a {
   padding: 1.5rem 1.5rem 2rem;
 }
 
+.app-shell-focus {
+  grid-template-columns: 15rem minmax(0, 1fr) 18rem;
+}
+
+.app-main-focus {
+  padding-inline: 1rem;
+  padding-bottom: 1rem;
+}
+
 .app-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.app-topbar-focus {
+  gap: 0.75rem;
 }
 
 .app-toplink {
@@ -360,6 +377,10 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.app-main-header-focus {
+  margin-top: 1rem;
 }
 
 .app-eyebrow,
@@ -417,6 +438,10 @@ a {
   flex: 1;
 }
 
+.app-content-focus {
+  margin-top: 1rem;
+}
+
 .app-blocked-state,
 .app-focus-card,
 .app-surface-card {
@@ -470,9 +495,52 @@ a {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
+.workspace-launch-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.95rem 1.1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.workspace-launch-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.workspace-launch-copy strong {
+  color: rgba(245, 243, 239, 0.92);
+}
+
+.workspace-launch-copy span {
+  color: rgba(245, 243, 239, 0.58);
+  font-size: 0.92rem;
+}
+
+.workspace-launch-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.workspace-launch-link,
+.app-next-step-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 243, 239, 0.9);
+  padding: 0.7rem 0.95rem;
+  font-weight: 600;
+}
+
 .workspace-host-frame {
   display: block;
-  height: calc(100vh - 13.5rem);
+  height: calc(100vh - 17.4rem);
   width: 100%;
   border: 0;
   background: #0d0f13;
@@ -482,6 +550,10 @@ a {
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(9, 10, 14, 0.94);
   padding: 1.5rem 1rem;
+}
+
+.app-rail-focus {
+  padding-inline: 0.85rem;
 }
 
 .app-rail-section + .app-rail-section {
@@ -550,6 +622,14 @@ a {
   color: rgba(245, 243, 239, 0.52);
 }
 
+.app-next-step-card {
+  margin-top: 1rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+}
+
 .app-soft {
   color: rgba(245, 243, 239, 0.62);
 }
@@ -603,5 +683,10 @@ a {
   .workspace-host-frame {
     min-height: 70vh;
     height: 70vh;
+  }
+
+  .workspace-launch-strip {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

@@ -23,11 +23,15 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <main className="app-shell">
-      <AppSidebar currentPath={currentPath} navigation={model.navigation} />
+    <main className={`app-shell${model.layoutMode === "focus" ? " app-shell-focus" : ""}`}>
+      <AppSidebar
+        compact={model.layoutMode === "focus"}
+        currentPath={currentPath}
+        navigation={model.navigation}
+      />
 
-      <section className="app-main">
-        <header className="app-topbar">
+      <section className={`app-main${model.layoutMode === "focus" ? " app-main-focus" : ""}`}>
+        <header className={`app-topbar${model.layoutMode === "focus" ? " app-topbar-focus" : ""}`}>
           <Link className="app-toplink" href="/dashboard">
             <ArrowLeft className="h-4 w-4" />
             Zur Übersicht
@@ -35,7 +39,7 @@ export function AppShell({
           <AuthControls />
         </header>
 
-        <div className="app-main-header">
+        <div className={`app-main-header${model.layoutMode === "focus" ? " app-main-header-focus" : ""}`}>
           <div>
             <p className="app-eyebrow">{eyebrow}</p>
             <h1 className="app-title">{title}</h1>
@@ -52,7 +56,7 @@ export function AppShell({
           )}
         </div>
 
-        <div className="app-content">
+        <div className={`app-content${model.layoutMode === "focus" ? " app-content-focus" : ""}`}>
           {model.access === "blocked" ? (
             <section className="app-blocked-state">
               <h2 className="app-blocked-title">Workspace gesperrt</h2>
@@ -68,6 +72,8 @@ export function AppShell({
         checklist={model.checklist}
         companyLabel={model.status.companyLabel}
         creditsLabel={model.status.creditsLabel}
+        layoutMode={model.layoutMode}
+        nextStep={model.nextStep}
         planLabel={model.status.planLabel}
         provisioningLabel={model.status.provisioningLabel}
       />

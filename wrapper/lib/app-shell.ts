@@ -2,6 +2,7 @@ import { formatPlanLabel, type AutopilotPlan } from "@/lib/credits";
 import type { ProvisioningStatus, WorkspaceStatus } from "@/lib/autopilot-metadata";
 
 type ShellInput = {
+  currentPath: string;
   creditSummary: {
     availableCredits: number;
     plan: AutopilotPlan;
@@ -22,6 +23,7 @@ export type AppNavigationItem = {
 
 export type AppShellModel = {
   navigation: AppNavigationItem[];
+  layoutMode: "default" | "focus";
   access: "ready" | "blocked";
   blockedMessage: string | null;
   status: {
@@ -29,6 +31,11 @@ export type AppShellModel = {
     planLabel: string;
     creditsLabel: string;
     provisioningLabel: string;
+  };
+  nextStep: {
+    title: string;
+    href: string;
+    description: string;
   };
   checklist: string[];
 };
@@ -56,9 +63,11 @@ function blockedMessageForStatus(status: ProvisioningStatus) {
 
 export function buildAppShellModel(input: ShellInput): AppShellModel {
   const canOpenWorkspace = input.autopilotState.canOpenWorkspace;
+  const isChatFocus = input.currentPath === "/app/chat";
 
   return {
     navigation,
+    layoutMode: isChatFocus ? "focus" : "default",
     access: canOpenWorkspace ? "ready" : "blocked",
     blockedMessage: canOpenWorkspace
       ? null
@@ -69,11 +78,30 @@ export function buildAppShellModel(input: ShellInput): AppShellModel {
       creditsLabel: `${input.creditSummary.availableCredits} Credits`,
       provisioningLabel: `${input.autopilotState.provisioningStatus} / ${input.autopilotState.workspaceStatus}`,
     },
-    checklist: [
-      "Executive plan created",
-      "Connect Stripe",
-      "Set up your dashboard",
-      "First app deployment",
-    ],
+    nextStep: isChatFocus
+      ? {
+          title: "Unternehmenswissen festhalten",
+          href: "/app/company-hq",
+          description:
+            "Lege Ziele, Positionierung und Kernwissen an, damit deine Operatoren sinnvoll arbeiten koennen.",
+        }
+      : {
+          title: "Credits oder Plan aktivieren",
+          href: "/start",
+          description:
+            "Pruefe Launch-Credits, Plan und Provisioning, bevor du tiefer in den Workspace gehst.",
+        },
+    checklist: isChatFocus
+      ? [
+          "Firma aktiv",
+          "Workspace verbunden",
+          "Nächster Schritt: Unternehmenswissen hinterlegen",
+        ]
+      : [
+          "Executive plan created",
+          "Connect Stripe",
+          "Set up your dashboard",
+          "First app deployment",
+        ],
   };
 }
