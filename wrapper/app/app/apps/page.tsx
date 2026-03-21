@@ -1,5 +1,6 @@
 import { BridgeError, type PaperclipDashboardSummary, readPaperclipBridgeJson } from "@/lib/paperclip-bridge";
 import { getCurrentUserState } from "@/lib/current-user";
+import { appStarterTemplates } from "@/lib/guided-launch";
 
 async function loadSummary() {
   const { userId, autopilotState } = await getCurrentUserState();
@@ -24,15 +25,32 @@ export default async function AppAppsPage() {
   const summary = await loadSummary();
 
   return (
-    <section className="app-surface-grid">
+    <section className="space-y-6">
       <article className="app-focus-card">
         <p className="app-surface-eyebrow">Apps</p>
-        <h2 className="app-surface-title">Deployments mit Guardrails</h2>
+        <h2 className="app-surface-title">Starte mit einem klaren Baustein</h2>
         <p className="app-surface-copy">
-          Apps, Seiten und Agenten-Outputs bekommen für den Launch denselben
-          kontrollierten Brückenzugang wie Dashboard und Connections.
+          Du musst keine große Plattform konfigurieren. Starte mit einem
+          einfachen operativen Baustein und lass den Workspace den ersten Output
+          erzeugen.
         </p>
       </article>
+
+      <section className="guided-grid">
+        {appStarterTemplates.map((item) => (
+          <article key={item.id} className="guided-card">
+            <p className="app-surface-eyebrow">Starter App</p>
+            <h3 className="guided-title">{item.title}</h3>
+            <p className="guided-prompt">{item.description}</p>
+            <div className="guided-prompt-box">{item.kickoffPrompt}</div>
+            <a className="workspace-launch-link" href="/app/chat">
+              Im Workspace starten
+            </a>
+          </article>
+        ))}
+      </section>
+
+      <section className="app-surface-grid">
       <article className="app-surface-card">
         <p className="app-surface-eyebrow">Tasks</p>
         <h3 className="app-surface-title">
@@ -52,6 +70,7 @@ export default async function AppAppsPage() {
           Launch bewusst an kundeneigene Tool-Zugänge gekoppelt.
         </p>
       </article>
+      </section>
     </section>
   );
 }

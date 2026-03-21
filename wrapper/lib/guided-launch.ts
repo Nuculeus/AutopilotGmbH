@@ -1,0 +1,110 @@
+export type GuidedSection = {
+  title: string;
+  prompt: string;
+  helper: string;
+};
+
+export type PriorityConnectionTemplate = {
+  id: string;
+  label: string;
+  description: string;
+  presetName: string;
+  providerHint: string;
+};
+
+export type AppStarterTemplate = {
+  id: string;
+  title: string;
+  description: string;
+  kickoffPrompt: string;
+};
+
+export const companyHqSetupSections: GuidedSection[] = [
+  {
+    title: "Wofür gibt es diese Firma?",
+    prompt: "Beschreibe in einem Satz das Hauptziel deiner Firma.",
+    helper: "Beispiel: Wir automatisieren Kundensupport für kleine E-Commerce-Marken in DACH.",
+  },
+  {
+    title: "Was verkauft oder liefert sie?",
+    prompt: "Formuliere das Angebot so, dass ein Außenstehender es sofort versteht.",
+    helper: "Beispiel: Wir bauen Landingpages, qualifizieren Leads und liefern wöchentliche Wachstumsreports.",
+  },
+  {
+    title: "Für wen ist sie gedacht?",
+    prompt: "Nenne die wichtigste Zielgruppe oder den Zielkunden.",
+    helper: "Beispiel: Solo-Selbstständige, KMU oder Agenturen im deutschsprachigen Raum.",
+  },
+  {
+    title: "Wie soll sie auftreten?",
+    prompt: "Lege Tonalität und Markenstil in wenigen Worten fest.",
+    helper: "Beispiel: Klar, vertrauenswürdig, deutsch, pragmatisch, ohne Buzzword-Sprache.",
+  },
+  {
+    title: "Was ist jetzt am wichtigsten?",
+    prompt: "Definiere die drei Prioritäten der nächsten 30 Tage.",
+    helper: "Beispiel: erste Kunden gewinnen, Zahlungsfluss einrichten, Website live bringen.",
+  },
+];
+
+export const priorityConnectionTemplates: PriorityConnectionTemplate[] = [
+  {
+    id: "stripe",
+    label: "Stripe verbinden",
+    description: "Damit deine Firma Zahlungen annehmen und Umsatz sichtbar machen kann.",
+    presetName: "stripe_api_key",
+    providerHint: "local_encrypted",
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic hinterlegen",
+    description: "Damit deine Operatoren sofort mit einem echten Modellzugang arbeiten können.",
+    presetName: "anthropic_api_key",
+    providerHint: "local_encrypted",
+  },
+  {
+    id: "google",
+    label: "Google / Gmail vorbereiten",
+    description: "Damit E-Mail, Kalender und Arbeitskonto früh sauber angebunden werden.",
+    presetName: "google_workspace_oauth",
+    providerHint: "local_encrypted",
+  },
+];
+
+export const appStarterTemplates: AppStarterTemplate[] = [
+  {
+    id: "landing-page",
+    title: "Landingpage",
+    description: "Starte mit einer klaren deutschen Seite für Angebot, Proof und ersten CTA.",
+    kickoffPrompt:
+      "Erstelle eine deutsche Landingpage für mein Angebot mit klarem Nutzen, Vertrauenselementen und einem starken Call-to-Action.",
+  },
+  {
+    id: "lead-capture",
+    title: "Lead-Erfassung",
+    description: "Baue einen einfachen Funnel, um die ersten Kontakte strukturiert einzusammeln.",
+    kickoffPrompt:
+      "Baue einen Lead-Capture-Flow für meine Firma, inklusive Formular, Dankeseite und Follow-up-E-Mail.",
+  },
+  {
+    id: "seo-page",
+    title: "SEO-Seite",
+    description: "Lege eine erste organische Einstiegsseite für einen klaren Suchbegriff an.",
+    kickoffPrompt:
+      "Erstelle eine SEO-Seite auf Deutsch für meinen wichtigsten Suchbegriff inklusive Gliederung, Copy und CTA.",
+  },
+  {
+    id: "support-flow",
+    title: "Support-Workflow",
+    description: "Richte einen einfachen Ablauf für häufige Kundenfragen und Antworten ein.",
+    kickoffPrompt:
+      "Lege einen Support-Workflow für häufige Kundenfragen an, inklusive Antwortstil, Eskalationsregeln und Vorlagen.",
+  },
+  {
+    id: "ops-board",
+    title: "Operations-Board",
+    description: "Mache die wichtigsten Aufgaben, Prioritäten und Verantwortlichkeiten sichtbar.",
+    kickoffPrompt:
+      "Erstelle ein einfaches Operations-Board für die nächsten 30 Tage mit Prioritäten, Aufgaben und Verantwortlichkeiten.",
+  },
+];

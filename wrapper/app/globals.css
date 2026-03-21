@@ -630,6 +630,61 @@ a {
   padding: 1rem;
 }
 
+.guided-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.guided-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.guided-card {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1.2rem;
+}
+
+.guided-title {
+  margin-top: 0.6rem;
+  font-size: 1.2rem;
+  line-height: 1.2;
+  color: rgba(245, 243, 239, 0.94);
+}
+
+.guided-prompt {
+  margin-top: 0.75rem;
+  color: rgba(245, 243, 239, 0.78);
+  line-height: 1.65;
+}
+
+.guided-helper {
+  margin-top: 0.7rem;
+  color: rgba(245, 243, 239, 0.54);
+  line-height: 1.65;
+  font-size: 0.95rem;
+}
+
+.guided-prompt-box {
+  margin-top: 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.9rem 1rem;
+  color: rgba(245, 243, 239, 0.72);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.guided-action-row {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
 .app-soft {
   color: rgba(245, 243, 239, 0.62);
 }
@@ -672,6 +727,11 @@ a {
   }
 
   .app-surface-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guided-grid,
+  .guided-grid-three {
     grid-template-columns: 1fr;
   }
 

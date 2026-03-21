@@ -29,10 +29,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   return (
     <AppShell
       currentPath={currentPath}
-      description="Die native Launch-Shell rahmt die nächsten produktiven Bereiche ein und schafft die deutsche Betriebsoberfläche."
-      eyebrow="Launch Workspace"
+      description={model.page.description}
+      eyebrow={model.page.eyebrow}
       model={model}
-      title="Operativer Arbeitsbereich"
+      title={model.page.title}
     >
       {children}
     </AppShell>

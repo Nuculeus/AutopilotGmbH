@@ -93,4 +93,67 @@ describe("buildAppShellModel", () => {
       "Nächster Schritt: Unternehmenswissen hinterlegen",
     ]);
   });
+
+  it("guides company hq toward the next operational setup step", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/company-hq",
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+    });
+
+    expect(model.page.title).toBe("Baue das Fundament deiner Firma");
+    expect(model.nextStep.title).toBe("Erste Verbindungen anschließen");
+    expect(model.nextStep.href).toBe("/app/connections");
+  });
+
+  it("guides connections toward plug-and-play first", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/connections",
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+    });
+
+    expect(model.page.title).toBe("Verbinde die ersten Werkzeuge");
+    expect(model.nextStep.title).toBe("Ersten Baustein starten");
+    expect(model.nextStep.href).toBe("/app/apps");
+  });
+
+  it("guides apps toward a first launch-safe starter", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/apps",
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+    });
+
+    expect(model.page.title).toBe("Starte den ersten Baustein");
+    expect(model.nextStep.title).toBe("Im Workspace ausführen");
+    expect(model.nextStep.href).toBe("/app/chat");
+  });
 });

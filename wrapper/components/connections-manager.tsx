@@ -1,16 +1,19 @@
 "use client";
 
-import { startTransition, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import type { PaperclipCompanySecret, PaperclipSecretProvider } from "@/lib/paperclip-bridge";
+import { priorityConnectionTemplates } from "@/lib/guided-launch";
 
 type ConnectionsManagerProps = {
   providers: PaperclipSecretProvider[];
   initialSecrets: PaperclipCompanySecret[];
+  initialPresetId?: string | null;
 };
 
 export function ConnectionsManager({
   providers,
   initialSecrets,
+  initialPresetId = null,
 }: ConnectionsManagerProps) {
   const [secrets, setSecrets] = useState(initialSecrets);
   const [name, setName] = useState("");
@@ -24,6 +27,19 @@ export function ConnectionsManager({
     () => providers.map((entry) => ({ value: entry.id, label: entry.label })),
     [providers],
   );
+
+  useEffect(() => {
+    if (!initialPresetId) return;
+    const preset = priorityConnectionTemplates.find((item) => item.id === initialPresetId);
+    if (!preset) return;
+
+    setName(preset.presetName);
+    setDescription(preset.description);
+    const providerMatch = providers.find((entry) => entry.id === preset.providerHint);
+    if (providerMatch) {
+      setProvider(providerMatch.id);
+    }
+  }, [initialPresetId, providers]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,7 +105,7 @@ export function ConnectionsManager({
         </article>
       </div>
 
-      <section className="app-surface-card">
+      <section className="app-surface-card" id="connect-form">
         <p className="app-surface-eyebrow">Neue Verbindung</p>
         <h3 className="app-surface-title">API-Key oder Secret hinterlegen</h3>
         <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>

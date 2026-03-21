@@ -6,6 +6,7 @@ import {
   readPaperclipBridgeJson,
 } from "@/lib/paperclip-bridge";
 import { getCurrentUserState } from "@/lib/current-user";
+import { priorityConnectionTemplates } from "@/lib/guided-launch";
 
 async function loadConnectionsState() {
   const { userId, autopilotState } = await getCurrentUserState();
@@ -47,22 +48,48 @@ async function loadConnectionsState() {
   }
 }
 
-export default async function AppConnectionsPage() {
+type AppConnectionsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function AppConnectionsPage({
+  searchParams,
+}: AppConnectionsPageProps) {
   const { providers, secrets, error } = await loadConnectionsState();
+  const params = searchParams ? await searchParams : {};
+  const preset =
+    typeof params.preset === "string" ? params.preset : null;
 
   return (
     <section className="space-y-6">
       <div className="app-focus-card">
         <p className="app-surface-eyebrow">Connections</p>
-        <h2 className="app-surface-title">Bring your own keys</h2>
+        <h2 className="app-surface-title">Plug-and-play zuerst</h2>
         <p className="app-surface-copy">
-          Hier setzen wir die Kundenzugänge bewusst so an, dass teure
-          Heavy-Use-Workflows nicht auf unsere Instanzkosten zurückfallen.
+          Verbinde zuerst genau die Zugänge, die deine Firma sofort
+          handlungsfähig machen. Der tiefere Katalog bleibt darunter erhalten.
         </p>
         {error ? <p className="app-muted mt-4 text-sm">{error}</p> : null}
       </div>
 
-      <ConnectionsManager initialSecrets={secrets} providers={providers} />
+      <section className="guided-grid guided-grid-three">
+        {priorityConnectionTemplates.map((item) => (
+          <article key={item.id} className="guided-card">
+            <p className="app-surface-eyebrow">Starter</p>
+            <h3 className="guided-title">{item.label}</h3>
+            <p className="guided-prompt">{item.description}</p>
+            <a className="workspace-launch-link" href={`/app/connections?preset=${item.id}#connect-form`}>
+              Jetzt vorbereiten
+            </a>
+          </article>
+        ))}
+      </section>
+
+      <ConnectionsManager
+        initialPresetId={preset}
+        initialSecrets={secrets}
+        providers={providers}
+      />
     </section>
   );
 }

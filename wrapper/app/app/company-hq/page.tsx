@@ -1,5 +1,6 @@
 import { BridgeError, type PaperclipDashboardSummary, readPaperclipBridgeJson } from "@/lib/paperclip-bridge";
 import { getCurrentUserState } from "@/lib/current-user";
+import { companyHqSetupSections } from "@/lib/guided-launch";
 
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat("de-DE", {
@@ -34,17 +35,38 @@ export default async function AppCompanyHqPage() {
   const { autopilotState, summary } = await loadState();
 
   return (
-    <section className="app-surface-grid">
+    <section className="space-y-6">
       <article className="app-focus-card">
         <p className="app-surface-eyebrow">Company HQ</p>
         <h2 className="app-surface-title">
           {autopilotState.companyName ?? "Noch keine Company aktiv"}
         </h2>
         <p className="app-surface-copy">
-          Die Wrapper-Shell bleibt deutsch und kundennah, während Paperclip im
-          Hintergrund die operativen Zustände und Budgets liefert.
+          Beschreibe deine Firma einmal klar, damit Operatoren, Automationen und
+          spätere Apps mit einem konsistenten Verständnis arbeiten.
         </p>
+        <div className="guided-action-row">
+          <a className="app-primary-cta" href="/app/chat">
+            Im Workspace ausarbeiten
+          </a>
+          <a className="workspace-launch-link" href="/app/connections">
+            Danach Verbindungen anschließen
+          </a>
+        </div>
       </article>
+
+      <section className="guided-grid">
+        {companyHqSetupSections.map((section) => (
+          <article key={section.title} className="guided-card">
+            <p className="app-surface-eyebrow">Briefing</p>
+            <h3 className="guided-title">{section.title}</h3>
+            <p className="guided-prompt">{section.prompt}</p>
+            <p className="guided-helper">{section.helper}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="app-surface-grid">
       <article className="app-surface-card">
         <p className="app-surface-eyebrow">Monatsbudget</p>
         <h3 className="app-surface-title">
@@ -64,9 +86,10 @@ export default async function AppCompanyHqPage() {
         <p className="app-surface-copy">
           {summary
             ? `${summary.budgets.pausedAgents} pausierte Agenten · ${summary.budgets.pendingApprovals} Freigaben`
-            : "Poweruser- und Compliance-Signale landen hier zentral im Wrapper."}
+          : "Poweruser- und Compliance-Signale landen hier zentral im Wrapper."}
         </p>
       </article>
+      </section>
     </section>
   );
 }
