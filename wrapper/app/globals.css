@@ -685,6 +685,44 @@ a {
   flex-wrap: wrap;
 }
 
+.guided-form {
+  margin-top: 1.4rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.guided-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  color: rgba(245, 243, 239, 0.9);
+  font-size: 0.95rem;
+}
+
+.guided-field textarea {
+  min-height: 8rem;
+  resize: vertical;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.9rem 1rem;
+  color: rgba(245, 243, 239, 0.94);
+  outline: none;
+}
+
+.guided-field-wide {
+  grid-column: 1 / -1;
+}
+
+.guided-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .app-soft {
   color: rgba(245, 243, 239, 0.62);
 }
@@ -732,6 +770,10 @@ a {
 
   .guided-grid,
   .guided-grid-three {
+    grid-template-columns: 1fr;
+  }
+
+  .guided-form {
     grid-template-columns: 1fr;
   }
 

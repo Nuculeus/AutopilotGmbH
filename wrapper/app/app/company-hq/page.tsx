@@ -1,3 +1,5 @@
+import { CompanyHqForm } from "@/components/company-hq-form";
+import { normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { BridgeError, type PaperclipDashboardSummary, readPaperclipBridgeJson } from "@/lib/paperclip-bridge";
 import { getCurrentUserState } from "@/lib/current-user";
 import { companyHqSetupSections } from "@/lib/guided-launch";
@@ -11,8 +13,11 @@ function formatCurrency(cents: number) {
 
 async function loadState() {
   const state = await getCurrentUserState();
+  const companyProfile = normalizeCompanyHqProfile(
+    state.user?.privateMetadata?.autopilotCompanyHq,
+  );
   if (!state.userId) {
-    return { autopilotState: state.autopilotState, summary: null };
+    return { autopilotState: state.autopilotState, companyProfile, summary: null };
   }
 
   try {
@@ -22,17 +27,17 @@ async function loadState() {
       userId: state.userId,
       autopilotState: state.autopilotState,
     });
-    return { autopilotState: state.autopilotState, summary };
+    return { autopilotState: state.autopilotState, companyProfile, summary };
   } catch (error) {
     if (error instanceof BridgeError) {
-      return { autopilotState: state.autopilotState, summary: null };
+      return { autopilotState: state.autopilotState, companyProfile, summary: null };
     }
     throw error;
   }
 }
 
 export default async function AppCompanyHqPage() {
-  const { autopilotState, summary } = await loadState();
+  const { autopilotState, companyProfile, summary } = await loadState();
 
   return (
     <section className="space-y-6">
@@ -65,6 +70,8 @@ export default async function AppCompanyHqPage() {
           </article>
         ))}
       </section>
+
+      <CompanyHqForm initialProfile={companyProfile} />
 
       <section className="app-surface-grid">
       <article className="app-surface-card">
