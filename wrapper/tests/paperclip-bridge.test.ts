@@ -157,4 +157,112 @@ describe("paperclip bridge", () => {
 
     vi.useRealTimers();
   });
+
+  it("allows the workspace HTML entry route for a provisioned company", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("<html><body>Paperclip</body></html>", {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await bridgePaperclipRequest({
+      request: new Request("http://localhost/api/paperclip/workspace"),
+      pathSegments: ["workspace"],
+      userId: "user_123",
+      autopilotState: {
+        companyId: "cmp_123",
+        bridgePrincipalId: "clerk:user_123",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://paperclip:3100/",
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
+  it("allows workspace static assets needed by the embedded UI", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("console.log('workspace');", {
+        status: 200,
+        headers: { "content-type": "application/javascript" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await bridgePaperclipRequest({
+      request: new Request("http://localhost/api/paperclip/workspace-assets/assets/index.js"),
+      pathSegments: ["workspace-assets", "assets", "index.js"],
+      userId: "user_123",
+      autopilotState: {
+        companyId: "cmp_123",
+        bridgePrincipalId: "clerk:user_123",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://paperclip:3100/assets/index.js",
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
+  it("allows workspace API calls while still blocking internal admin routes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await bridgePaperclipRequest({
+      request: new Request("http://localhost/api/paperclip/workspace-api/companies"),
+      pathSegments: ["workspace-api", "companies"],
+      userId: "user_123",
+      autopilotState: {
+        companyId: "cmp_123",
+        bridgePrincipalId: "clerk:user_123",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://paperclip:3100/api/companies",
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+
+    await expect(
+      bridgePaperclipRequest({
+        request: new Request("http://localhost/api/paperclip/workspace-api/internal/bootstrap-company"),
+        pathSegments: ["workspace-api", "internal", "bootstrap-company"],
+        userId: "user_123",
+        autopilotState: {
+          companyId: "cmp_123",
+          bridgePrincipalId: "clerk:user_123",
+          provisioningStatus: "active",
+          workspaceStatus: "ready",
+          canOpenWorkspace: true,
+        },
+      }),
+    ).rejects.toMatchObject<Partial<BridgeError>>({
+      status: 404,
+    });
+  });
 });

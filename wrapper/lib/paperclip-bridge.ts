@@ -1,7 +1,13 @@
 import type { AutopilotState } from "@/lib/autopilot-metadata";
 
-type BridgeAlias = "dashboard-summary" | "secret-providers" | "secrets";
-type BridgeMethod = "GET" | "POST";
+type BridgeAlias =
+  | "dashboard-summary"
+  | "secret-providers"
+  | "secrets"
+  | "workspace"
+  | "workspace-assets"
+  | "workspace-api";
+type BridgeMethod = "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 type BridgeContext = {
   request: Request;
@@ -81,7 +87,7 @@ function parsePositiveInt(value: string | undefined, fallback: number) {
 }
 
 function readLimitForMethod(method: BridgeMethod) {
-  if (method === "POST") {
+  if (method !== "GET" && method !== "HEAD") {
     return parsePositiveInt(process.env.PAPERCLIP_BRIDGE_WRITES_PER_MINUTE, 6);
   }
 
@@ -138,6 +144,7 @@ function resolveRouteSpec(
   const alias = pathSegments.join("/");
   const normalizedMethod = method.toUpperCase() as BridgeMethod;
   const search = filterSearchParams(requestUrl);
+  const [head, ...tail] = pathSegments;
 
   if (alias === "dashboard-summary" && normalizedMethod === "GET") {
     return {
@@ -160,6 +167,43 @@ function resolveRouteSpec(
       alias: "secrets",
       method: normalizedMethod,
       targetPath: `/api/companies/${companyId}/secrets`,
+    };
+  }
+
+  if (head === "workspace" && (normalizedMethod === "GET" || normalizedMethod === "HEAD")) {
+    const targetPath = tail.length > 0 ? `/${tail.join("/")}${search}` : `/${search}`;
+    return {
+      alias: "workspace",
+      method: normalizedMethod,
+      targetPath,
+    };
+  }
+
+  if (head === "workspace-assets" && (normalizedMethod === "GET" || normalizedMethod === "HEAD")) {
+    if (tail.length === 0) {
+      throw new BridgeError(404, "Workspace-Asset nicht gefunden.");
+    }
+
+    return {
+      alias: "workspace-assets",
+      method: normalizedMethod,
+      targetPath: `/${tail.join("/")}${search}`,
+    };
+  }
+
+  if (head === "workspace-api" && tail.length > 0) {
+    if (tail[0] === "internal") {
+      throw new BridgeError(404, "Diese Paperclip-Fläche ist im Launch-Wrapper noch nicht freigegeben.");
+    }
+
+    if (tail[0] === "auth" && tail[1] !== "get-session") {
+      throw new BridgeError(404, "Diese Paperclip-Fläche ist im Launch-Wrapper noch nicht freigegeben.");
+    }
+
+    return {
+      alias: "workspace-api",
+      method: normalizedMethod,
+      targetPath: `/api/${tail.join("/")}${search}`,
     };
   }
 
