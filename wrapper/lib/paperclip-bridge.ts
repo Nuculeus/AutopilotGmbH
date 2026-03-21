@@ -94,11 +94,22 @@ function readLimitForMethod(method: BridgeMethod) {
   return parsePositiveInt(process.env.PAPERCLIP_BRIDGE_READS_PER_MINUTE, 30);
 }
 
-function assertRateLimit(userId: string, companyId: string, alias: BridgeAlias, method: BridgeMethod) {
+function rateLimitScope(alias: BridgeAlias, targetPath: string) {
+  const [pathname] = targetPath.split("?");
+  return `${alias}:${pathname || "/"}`;
+}
+
+function assertRateLimit(
+  userId: string,
+  companyId: string,
+  alias: BridgeAlias,
+  method: BridgeMethod,
+  targetPath: string,
+) {
   const limit = readLimitForMethod(method);
   const now = Date.now();
   const windowStart = now - 60_000;
-  const key = `${userId}:${companyId}:${method}:${alias}`;
+  const key = `${userId}:${companyId}:${method}:${rateLimitScope(alias, targetPath)}`;
   const attempts = (rateLimitAttempts.get(key) ?? []).filter((timestamp) => timestamp > windowStart);
 
   if (attempts.length >= limit) {
@@ -233,7 +244,7 @@ export async function bridgePaperclipRequest(input: BridgeContext) {
   const requestUrl = new URL(input.request.url);
   const route = resolveRouteSpec(input.pathSegments, input.request.method, companyId, requestUrl);
 
-  assertRateLimit(input.userId, companyId, route.alias, route.method);
+  assertRateLimit(input.userId, companyId, route.alias, route.method, route.targetPath);
 
   const bridgeSecret = process.env.INTERNAL_BRIDGE_SECRET;
   if (!bridgeSecret) {

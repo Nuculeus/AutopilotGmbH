@@ -158,6 +158,47 @@ describe("paperclip bridge", () => {
     vi.useRealTimers();
   });
 
+  it("does not collapse different workspace api endpoints into the same rate limit bucket", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+
+    const autopilotState = {
+      companyId: "cmp_123",
+      bridgePrincipalId: "clerk:user_123",
+      provisioningStatus: "active" as const,
+      workspaceStatus: "ready" as const,
+      canOpenWorkspace: true,
+    };
+
+    for (let index = 0; index < 30; index += 1) {
+      await bridgePaperclipRequest({
+        request: new Request("http://localhost/api/paperclip/workspace-api/companies"),
+        pathSegments: ["workspace-api", "companies"],
+        userId: "user_123",
+        autopilotState,
+      });
+    }
+
+    await expect(
+      bridgePaperclipRequest({
+        request: new Request("http://localhost/api/paperclip/workspace-api/companies/cmp_123/agents"),
+        pathSegments: ["workspace-api", "companies", "cmp_123", "agents"],
+        userId: "user_123",
+        autopilotState,
+      }),
+    ).resolves.toBeInstanceOf(Response);
+
+    vi.useRealTimers();
+  });
+
   it("allows the workspace HTML entry route for a provisioned company", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response("<html><body>Paperclip</body></html>", {
