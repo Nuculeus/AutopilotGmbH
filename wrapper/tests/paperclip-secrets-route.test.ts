@@ -332,6 +332,46 @@ describe("POST /api/paperclip/secrets", () => {
     );
   });
 
+  it("rejects invalid llm key payload server-side before forwarding", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      privateMetadata: {},
+      publicMetadata: {
+        autopilotProvisioning: {
+          companyId: "cmp_123",
+          companyName: "Meine Autopilot GmbH",
+          provisioningStatus: "active",
+          workspaceStatus: "ready",
+          bridgePrincipalId: "clerk:user_123",
+        },
+      },
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { POST } = await import("@/app/api/paperclip/[...path]/route");
+    const response = await POST(
+      new Request("http://localhost/api/paperclip/secrets", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "openai_api_key",
+          value: "pk_not_a_secret_key",
+          description: "bad key",
+          provider: "local_encrypted",
+        }),
+      }),
+      { params: Promise.resolve({ path: ["secrets"] }) },
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(typeof payload.error).toBe("string");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("resets llm readiness when a secret is deleted", async () => {
     authMock.mockResolvedValue({ userId: "user_123" });
     getUserMock.mockResolvedValue({

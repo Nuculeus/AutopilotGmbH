@@ -11,6 +11,7 @@ import {
   planAgentLlmBindings,
   resolveLlmProviderFromSecretName,
 } from "@/lib/llm-connections";
+import { validateSecretForLaunch } from "@/lib/connection-key-validation";
 import { canTargetCompany, listCompanyAgents, updateAgentAdapterConfig } from "@/lib/paperclip-admin";
 import {
   BridgeError,
@@ -131,6 +132,14 @@ function normalizeSecretCreatePayload(rawPayload: unknown) {
   const name = llmProvider
     ? getCanonicalLlmSecretName(llmProvider)
     : originalName;
+  const validation = validateSecretForLaunch({
+    name,
+    value,
+  });
+
+  if (!validation.ok) {
+    throw new BridgeError(400, validation.message ?? "Secret konnte nicht validiert werden.");
+  }
 
   return {
     ...payload,
