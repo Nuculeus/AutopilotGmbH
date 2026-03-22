@@ -3,6 +3,15 @@ import { resolveControlPlaneDatabaseUrl } from "@/lib/db/client";
 import { ensureControlPlaneSchema } from "@/lib/db/schema";
 import type { SqlClient } from "@/lib/db/types";
 import type { RevenueTrack } from "@/lib/revenue-track";
+import type {
+  DraftRunRecord,
+  QueuedRunRecord,
+  RunQueueDriver,
+} from "@/lib/run-engine";
+import {
+  transitionDraftRunToAwaitingApproval,
+  transitionDraftRunToQueued,
+} from "@/lib/run-engine";
 
 type VentureOwnershipRow = {
   id: string;
@@ -18,6 +27,8 @@ type RunExecutionRow = {
   venture_id: string;
   run_kind: string;
   status: string;
+  input_json?: unknown;
+  attempt?: number;
   requested_budget_cents: number;
   spent_cents: number;
   error_message: string | null;
@@ -99,6 +110,23 @@ function toJson(value: unknown) {
   return JSON.stringify(value ?? {});
 }
 
+function toDraftRunRecord(input: {
+  ventureId: string;
+  kind: string;
+  payload?: unknown;
+  requestedBudgetCents: number;
+}): DraftRunRecord {
+  return {
+    id: `run_${crypto.randomUUID()}`,
+    ventureId: input.ventureId,
+    kind: input.kind,
+    status: "draft",
+    attempt: 1,
+    requestedBudgetCents: input.requestedBudgetCents,
+    payload: input.payload ?? {},
+  };
+}
+
 async function getOwnedVenture(input: {
   sql: SqlClient;
   clerkUserId: string;
@@ -128,6 +156,52 @@ async function createApprovalGate(input: {
     VALUES (${gateId}, ${input.ventureId}, ${input.gateType}, 'pending', ${input.reason}, ${toJson(input.payload)}::jsonb)
   `;
   return gateId;
+}
+
+async function persistDraftRun(input: {
+  sql: SqlClient;
+  draft: DraftRunRecord;
+}) {
+  await input.sql`
+    INSERT INTO run_executions (
+      id,
+      venture_id,
+      run_kind,
+      status,
+      input_json,
+      requested_budget_cents,
+      attempt,
+      updated_at
+    )
+    VALUES (
+      ${input.draft.id},
+      ${input.draft.ventureId},
+      ${input.draft.kind},
+      ${input.draft.status},
+      ${toJson(input.draft.payload)}::jsonb,
+      ${input.draft.requestedBudgetCents},
+      ${input.draft.attempt},
+      NOW()
+    )
+  `;
+}
+
+async function updateRunStatus(input: {
+  sql: SqlClient;
+  runId: string;
+  status: string;
+  errorMessage?: string | null;
+  output?: unknown;
+}) {
+  await input.sql`
+    UPDATE run_executions
+    SET
+      status = ${input.status},
+      error_message = ${input.errorMessage ?? null},
+      output_json = ${toJson(input.output ?? {})}::jsonb,
+      updated_at = NOW()
+    WHERE id = ${input.runId}
+  `;
 }
 
 export async function getRunForUser(input: { clerkUserId: string; runId: string }) {
@@ -221,24 +295,6 @@ export async function queueRunForUser(input: {
     throw new RunStoreError(404, "Venture nicht gefunden.");
   }
 
-  if (input.input.heavyUsage && !input.input.allowHeavyPassThrough) {
-    const gateId = await createApprovalGate({
-      sql,
-      ventureId: venture.id,
-      gateType: "heavy_usage_pass_through",
-      reason: "heavy_usage_pass_through_required",
-      payload: {
-        kind: input.input.kind,
-      },
-    });
-
-    return {
-      status: "blocked",
-      reason: "heavy_usage_pass_through_required",
-      approvalGateId: gateId,
-    };
-  }
-
   const specRows = await sql<Array<{ budget_cap_cents: number | null }>>`
     SELECT budget_cap_cents
     FROM venture_specs
@@ -247,6 +303,17 @@ export async function queueRunForUser(input: {
   `;
   const budgetCap = specRows[0]?.budget_cap_cents ?? null;
   const requestedBudget = Math.max(0, input.input.requestedBudgetCents ?? 0);
+  const draft = toDraftRunRecord({
+    ventureId: venture.id,
+    kind: input.input.kind,
+    payload: input.input.payload,
+    requestedBudgetCents: requestedBudget,
+  });
+
+  await persistDraftRun({
+    sql,
+    draft,
+  });
 
   if (budgetCap && budgetCap > 0) {
     const spendRows = await sql<Array<{ current_spend: number }>>`
@@ -271,6 +338,14 @@ export async function queueRunForUser(input: {
         },
       });
 
+      const awaitingApproval = transitionDraftRunToAwaitingApproval(draft);
+      await updateRunStatus({
+        sql,
+        runId: awaitingApproval.id,
+        status: awaitingApproval.status,
+        output: { approvalGateId: gateId, reason: "budget_cap_exceeded" },
+      });
+
       return {
         status: "blocked",
         reason: "budget_cap_exceeded",
@@ -279,35 +354,231 @@ export async function queueRunForUser(input: {
     }
   }
 
-  const runId = `run_${crypto.randomUUID()}`;
+  if (input.input.heavyUsage && !input.input.allowHeavyPassThrough) {
+    const gateId = await createApprovalGate({
+      sql,
+      ventureId: venture.id,
+      gateType: "heavy_usage_pass_through",
+      reason: "heavy_usage_pass_through_required",
+      payload: {
+        kind: input.input.kind,
+      },
+    });
 
-  await sql`
-    INSERT INTO run_executions (
-      id,
-      venture_id,
-      run_kind,
-      status,
-      input_json,
-      requested_budget_cents,
-      updated_at
-    )
-    VALUES (
-      ${runId},
-      ${venture.id},
-      ${input.input.kind},
-      'queued',
-      ${toJson(input.input.payload ?? {})}::jsonb,
-      ${requestedBudget},
-      NOW()
-    )
-  `;
+    const awaitingApproval = transitionDraftRunToAwaitingApproval(draft);
+    await updateRunStatus({
+      sql,
+      runId: awaitingApproval.id,
+      status: awaitingApproval.status,
+      output: { approvalGateId: gateId, reason: "heavy_usage_pass_through_required" },
+    });
+
+    return {
+      status: "blocked",
+      reason: "heavy_usage_pass_through_required",
+      approvalGateId: gateId,
+    };
+  }
+  const queued = transitionDraftRunToQueued(draft);
+  await updateRunStatus({
+    sql,
+    runId: queued.id,
+    status: queued.status,
+  });
 
   return {
     status: "queued",
     run: {
-      id: runId,
-      ventureId: venture.id,
-      status: "queued",
+      id: queued.id,
+      ventureId: queued.ventureId,
+      status: queued.status,
+    },
+  };
+}
+
+function mapQueuedRun(row: RunExecutionRow): QueuedRunRecord {
+  return {
+    id: row.id,
+    ventureId: row.venture_id,
+    kind: row.run_kind,
+    status: "queued",
+    attempt: row.attempt ?? 1,
+    requestedBudgetCents: row.requested_budget_cents,
+    payload: row.input_json ?? {},
+  };
+}
+
+export function createRunQueueDriver(): RunQueueDriver {
+  return {
+    async claimNextQueuedRun() {
+      const sql = getSql();
+      if (!sql) {
+        throw new RunStoreError(503, "DATABASE_URL fehlt. Run-Store ist nicht verfuegbar.");
+      }
+      await ensureRunSchema(sql);
+
+      return sql.begin(async (transaction) => {
+        const tx = transaction as unknown as SqlClient;
+
+        const rows = await tx<RunExecutionRow[]>`
+          SELECT
+            id,
+            venture_id,
+            run_kind,
+            status,
+            input_json,
+            attempt,
+            requested_budget_cents,
+            spent_cents,
+            error_message
+          FROM run_executions
+          WHERE status = 'queued'
+          ORDER BY created_at ASC
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1
+        `;
+
+        const run = rows[0];
+        if (!run) {
+          return null;
+        }
+
+        await tx`
+          UPDATE run_executions
+          SET status = 'running', started_at = COALESCE(started_at, NOW()), updated_at = NOW()
+          WHERE id = ${run.id}
+        `;
+
+        return mapQueuedRun(run);
+      });
+    },
+
+    async markRunRunning(input) {
+      const sql = getSql();
+      if (!sql) {
+        throw new RunStoreError(503, "DATABASE_URL fehlt. Run-Store ist nicht verfuegbar.");
+      }
+      await ensureRunSchema(sql);
+
+      await sql`
+        UPDATE run_executions
+        SET status = 'running', attempt = ${input.attempt}, started_at = COALESCE(started_at, NOW()), updated_at = NOW()
+        WHERE id = ${input.runId}
+      `;
+    },
+
+    async appendRunStep(input) {
+      const sql = getSql();
+      if (!sql) {
+        throw new RunStoreError(503, "DATABASE_URL fehlt. Run-Store ist nicht verfuegbar.");
+      }
+      await ensureRunSchema(sql);
+
+      if (input.status === "running") {
+        await sql`
+          INSERT INTO run_steps (id, run_id, step_key, status, started_at, updated_at)
+          VALUES (${`step_${crypto.randomUUID()}`}, ${input.runId}, ${input.stepKey}, 'running', NOW(), NOW())
+        `;
+        return;
+      }
+
+      const updated = await sql<Array<{ id: string }>>`
+        UPDATE run_steps
+        SET
+          status = ${input.status},
+          error_code = ${input.errorCode ?? null},
+          finished_at = NOW(),
+          updated_at = NOW()
+        WHERE id = (
+          SELECT id
+          FROM run_steps
+          WHERE run_id = ${input.runId} AND step_key = ${input.stepKey}
+          ORDER BY created_at DESC
+          LIMIT 1
+        )
+        RETURNING id
+      `;
+
+      if (!updated[0]) {
+        await sql`
+          INSERT INTO run_steps (
+            id,
+            run_id,
+            step_key,
+            status,
+            error_code,
+            started_at,
+            finished_at,
+            updated_at
+          )
+          VALUES (
+            ${`step_${crypto.randomUUID()}`},
+            ${input.runId},
+            ${input.stepKey},
+            ${input.status},
+            ${input.errorCode ?? null},
+            NOW(),
+            NOW(),
+            NOW()
+          )
+        `;
+      }
+    },
+
+    async markRunQueued(input) {
+      const sql = getSql();
+      if (!sql) {
+        throw new RunStoreError(503, "DATABASE_URL fehlt. Run-Store ist nicht verfuegbar.");
+      }
+      await ensureRunSchema(sql);
+
+      await sql`
+        UPDATE run_executions
+        SET
+          status = 'queued',
+          attempt = ${input.attempt},
+          error_message = ${input.errorMessage ?? null},
+          updated_at = NOW()
+        WHERE id = ${input.runId}
+      `;
+    },
+
+    async markRunSucceeded(input) {
+      const sql = getSql();
+      if (!sql) {
+        throw new RunStoreError(503, "DATABASE_URL fehlt. Run-Store ist nicht verfuegbar.");
+      }
+      await ensureRunSchema(sql);
+
+      await sql`
+        UPDATE run_executions
+        SET
+          status = 'succeeded',
+          output_json = ${toJson(input.output ?? {})}::jsonb,
+          spent_cents = ${Math.max(0, input.spentCents ?? 0)},
+          error_message = NULL,
+          finished_at = NOW(),
+          updated_at = NOW()
+        WHERE id = ${input.runId}
+      `;
+    },
+
+    async markRunFailed(input) {
+      const sql = getSql();
+      if (!sql) {
+        throw new RunStoreError(503, "DATABASE_URL fehlt. Run-Store ist nicht verfuegbar.");
+      }
+      await ensureRunSchema(sql);
+
+      await sql`
+        UPDATE run_executions
+        SET
+          status = 'failed',
+          error_message = ${input.errorMessage},
+          finished_at = NOW(),
+          updated_at = NOW()
+        WHERE id = ${input.runId}
+      `;
     },
   };
 }
