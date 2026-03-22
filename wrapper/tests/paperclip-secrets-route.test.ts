@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMock = vi.fn();
 const getUserMock = vi.fn();
+const updateUserMetadataMock = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: authMock,
   clerkClient: vi.fn(async () => ({
     users: {
       getUser: getUserMock,
+      updateUserMetadata: updateUserMetadataMock,
     },
   })),
 }));
@@ -122,6 +124,18 @@ describe("POST /api/paperclip/secrets", () => {
         }),
       }),
     );
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        privateMetadata: expect.objectContaining({
+          autopilotLlmReadiness: expect.objectContaining({
+            status: "blocked",
+            probedAdapterType: null,
+            checkedAt: null,
+          }),
+        }),
+      }),
+    );
   });
 
   it("sanitizes llm secret payload before forwarding to bridge", async () => {
@@ -189,6 +203,18 @@ describe("POST /api/paperclip/secrets", () => {
           description: "OpenAI Zugang",
           provider: "local_encrypted",
           externalRef: null,
+        }),
+      }),
+    );
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        privateMetadata: expect.objectContaining({
+          autopilotLlmReadiness: expect.objectContaining({
+            status: "blocked",
+            probedAdapterType: null,
+            checkedAt: null,
+          }),
         }),
       }),
     );

@@ -67,6 +67,23 @@ function isSavedSecretPayload(payload: unknown): payload is { id: string; name: 
   );
 }
 
+function asRecord(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function llmReadinessResetSummary(secretName: string) {
+  const provider = resolveLlmProviderFromSecretName(secretName);
+  if (!provider) {
+    return null;
+  }
+
+  return "LLM-Verbindung wurde aktualisiert. Bitte den Readiness-Check erneut ausführen, bevor du den Workspace nutzt.";
+}
+
 function normalizeSecretCreatePayload(rawPayload: unknown) {
   if (!rawPayload || typeof rawPayload !== "object" || Array.isArray(rawPayload)) {
     throw new BridgeError(400, "Invalid secret payload.");
@@ -229,8 +246,9 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
+  const privateMetadata = asRecord(user.privateMetadata);
   const llmReadiness = normalizeAutopilotLlmReadinessMetadata(
-    user.privateMetadata?.autopilotLlmReadiness,
+    privateMetadata.autopilotLlmReadiness,
   );
 
   if (isWorkspaceExecutionPath(path) && !isLlmReadinessReady(llmReadiness)) {
@@ -291,6 +309,21 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
           autopilotState,
           secret: payload,
         });
+
+        const resetSummary = llmReadinessResetSummary(payload.name);
+        if (resetSummary) {
+          await client.users.updateUserMetadata(userId, {
+            privateMetadata: {
+              ...privateMetadata,
+              autopilotLlmReadiness: {
+                status: "blocked",
+                summary: resetSummary,
+                probedAdapterType: null,
+                checkedAt: null,
+              },
+            },
+          });
+        }
       }
 
       return NextResponse.json(payload, { status: upstream.status, headers });
