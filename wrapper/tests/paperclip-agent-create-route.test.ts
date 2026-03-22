@@ -34,6 +34,14 @@ describe("POST /api/paperclip/workspace-api/agents", () => {
           bridgePrincipalId: "clerk:user_123",
         },
       },
+      privateMetadata: {
+        autopilotLlmReadiness: {
+          status: "ready",
+          summary: "LLM-Zugang ist lauffähig.",
+          checkedAt: "2026-03-22T10:00:00.000Z",
+          probedAdapterType: "codex_local",
+        },
+      },
     });
 
     const fetchMock = vi

@@ -2,6 +2,10 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
 import {
+  isLlmReadinessReady,
+  normalizeAutopilotLlmReadinessMetadata,
+} from "@/lib/llm-readiness";
+import {
   buildAgentConfigWithLlmSecret,
   planAgentLlmBindings,
 } from "@/lib/llm-connections";
@@ -74,6 +78,10 @@ function isWorkspaceAgentCreate(path: string[], method: string) {
     && path[0] === "workspace-api"
     && path[1] === "agents"
     && method.toUpperCase() === "POST";
+}
+
+function isWorkspaceExecutionPath(path: string[]) {
+  return path[0] === "workspace" || path[0] === "workspace-api";
 }
 
 function isCreatedAgentPayload(payload: unknown): payload is CreatedAgentPayload {
@@ -186,6 +194,21 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
+  const llmReadiness = normalizeAutopilotLlmReadinessMetadata(
+    user.privateMetadata?.autopilotLlmReadiness,
+  );
+
+  if (isWorkspaceExecutionPath(path) && !isLlmReadinessReady(llmReadiness)) {
+    return NextResponse.json(
+      {
+        error:
+          "LLM-Zugang ist noch nicht als bereit verifiziert. Bitte zuerst in Connections den Readiness-Check erfolgreich abschließen.",
+        summary: llmReadiness.summary,
+        nextStepHref: "/app/connections?preset=openai",
+      },
+      { status: 409 },
+    );
+  }
 
   try {
     const upstream = await bridgePaperclipRequest({

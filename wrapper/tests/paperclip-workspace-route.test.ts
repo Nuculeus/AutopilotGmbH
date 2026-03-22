@@ -37,6 +37,14 @@ describe("GET /api/paperclip/[...path] workspace host", () => {
           bridgePrincipalId: "clerk:user_123",
         },
       },
+      privateMetadata: {
+        autopilotLlmReadiness: {
+          status: "ready",
+          summary: "LLM-Zugang ist lauffähig.",
+          checkedAt: "2026-03-22T10:00:00.000Z",
+          probedAdapterType: "codex_local",
+        },
+      },
     });
 
     vi.stubGlobal(
@@ -69,5 +77,47 @@ describe("GET /api/paperclip/[...path] workspace host", () => {
     expect(html).toContain('window.__PAPERCLIP_BASENAME__="/api/paperclip/workspace"');
     expect(html).toContain('window.__PAPERCLIP_DISABLE_SW__=true');
     expect(html).toContain('window.__PAPERCLIP_DISABLE_LIVE_SOCKETS__=true');
+  });
+
+  it("blocks direct workspace proxy access until llm readiness is verified", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotProvisioning: {
+          companyId: "cmp_123",
+          companyName: "Meine Autopilot GmbH",
+          provisioningStatus: "active",
+          workspaceStatus: "ready",
+          bridgePrincipalId: "clerk:user_123",
+        },
+      },
+      privateMetadata: {
+        autopilotLlmReadiness: {
+          status: "warning",
+          summary: "OpenAI probe failed",
+          checkedAt: "2026-03-22T10:00:00.000Z",
+          probedAdapterType: "codex_local",
+        },
+      },
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { GET } = await import("@/app/api/paperclip/[...path]/route");
+    const response = await GET(new Request("http://localhost/api/paperclip/workspace"), {
+      params: Promise.resolve({
+        path: ["workspace"],
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        error: expect.stringContaining("LLM"),
+      }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

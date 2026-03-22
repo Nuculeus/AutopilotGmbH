@@ -2,6 +2,11 @@
 
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { validateSecretForLaunch } from "@/lib/connection-key-validation";
+import {
+  getCanonicalLlmSecretName,
+  LLM_PROVIDER_OPTIONS,
+  type LlmProvider,
+} from "@/lib/llm-connections";
 import type { PaperclipCompanySecret, PaperclipSecretProvider } from "@/lib/paperclip-bridge";
 import { priorityConnectionTemplates } from "@/lib/guided-launch";
 
@@ -24,7 +29,9 @@ export function ConnectionsManager({
   initialPresetId = null,
 }: ConnectionsManagerProps) {
   const [secrets, setSecrets] = useState(initialSecrets);
-  const [name, setName] = useState("");
+  const [connectionKind, setConnectionKind] = useState<"llm" | "custom">("llm");
+  const [llmProvider, setLlmProvider] = useState<LlmProvider>("openai");
+  const [name, setName] = useState(getCanonicalLlmSecretName("openai"));
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
   const [provider, setProvider] = useState(providers[0]?.id ?? "local_encrypted");
@@ -39,12 +46,27 @@ export function ConnectionsManager({
   );
 
   useEffect(() => {
+    if (connectionKind !== "llm") {
+      return;
+    }
+
+    setName(getCanonicalLlmSecretName(llmProvider));
+  }, [connectionKind, llmProvider]);
+
+  useEffect(() => {
     if (!initialPresetId) return;
     const preset = priorityConnectionTemplates.find((item) => item.id === initialPresetId);
     if (!preset) return;
 
-    setName(preset.presetName);
+    setConnectionKind("llm");
     setDescription(preset.description);
+    setLlmProvider(
+      preset.id === "anthropic"
+        ? "anthropic"
+        : preset.id === "gemini"
+          ? "gemini"
+          : "openai",
+    );
     const providerMatch = providers.find((entry) => entry.id === preset.providerHint);
     if (providerMatch) {
       setProvider(providerMatch.id);
@@ -123,7 +145,10 @@ export function ConnectionsManager({
 
     startTransition(async () => {
       try {
-        const normalizedName = name.trim();
+        const normalizedName =
+          connectionKind === "llm"
+            ? getCanonicalLlmSecretName(llmProvider)
+            : name.trim();
         const normalizedValue = value.trim();
         const normalizedDescription = description.trim();
         const validation = validateSecretForLaunch({
@@ -156,7 +181,9 @@ export function ConnectionsManager({
         }
 
         setSecrets((current) => [data as PaperclipCompanySecret, ...current]);
-        setName("");
+        if (connectionKind === "custom") {
+          setName("");
+        }
         setValue("");
         setDescription("");
         setMessage("Verbindung gespeichert. Readiness wird jetzt geprüft...");
@@ -224,15 +251,53 @@ export function ConnectionsManager({
         <h3 className="app-surface-title">API-Key oder Secret hinterlegen</h3>
         <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
           <label className="flex flex-col gap-2 text-sm text-white">
+            Verbindungstyp
+            <select
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+              onChange={(event) => setConnectionKind(event.target.value as "llm" | "custom")}
+              value={connectionKind}
+            >
+              <option value="llm">LLM-Zugang (empfohlen)</option>
+              <option value="custom">Andere API / Secret</option>
+            </select>
+          </label>
+          {connectionKind === "llm" ? (
+            <label className="flex flex-col gap-2 text-sm text-white">
+              LLM-Anbieter
+              <select
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                onChange={(event) => setLlmProvider(event.target.value as LlmProvider)}
+                value={llmProvider}
+              >
+                {LLM_PROVIDER_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+          <label className="flex flex-col gap-2 text-sm text-white">
             Secret-Name
             <input
               className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
               onChange={(event) => setName(event.target.value)}
-              placeholder="z. B. anthropic_api_key"
+              placeholder="z. B. stripe_api_key"
               required
               value={name}
             />
           </label>
+          )}
+          {connectionKind === "llm" ? (
+            <label className="flex flex-col gap-2 text-sm text-white">
+              Secret-Name
+              <input
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                readOnly
+                value={getCanonicalLlmSecretName(llmProvider)}
+              />
+            </label>
+          ) : null}
           <label className="flex flex-col gap-2 text-sm text-white">
             Provider
             <select

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAgentConfigWithLlmSecret,
+  getCanonicalLlmSecretName,
   hasConnectedLlmProvider,
   hasRunnableLlmBinding,
+  LLM_PROVIDER_OPTIONS,
   planAgentLlmBindings,
   resolveLlmProviderFromSecretName,
 } from "@/lib/llm-connections";
@@ -16,6 +18,20 @@ describe("llm connections helpers", () => {
     expect(resolveLlmProviderFromSecretName("claude_token")).toBe("anthropic");
     expect(resolveLlmProviderFromSecretName("Gemini_Api_Key")).toBe("gemini");
     expect(resolveLlmProviderFromSecretName("stripe_api_key")).toBe(null);
+  });
+
+  it("exposes canonical secret names for dropdown-selected llm providers", () => {
+    expect(getCanonicalLlmSecretName("openai")).toBe("OPENAI_API_KEY");
+    expect(getCanonicalLlmSecretName("anthropic")).toBe("ANTHROPIC_API_KEY");
+    expect(getCanonicalLlmSecretName("gemini")).toBe("GEMINI_API_KEY");
+  });
+
+  it("keeps dropdown options in stable launch order", () => {
+    expect(LLM_PROVIDER_OPTIONS.map((entry) => entry.id)).toEqual([
+      "openai",
+      "anthropic",
+      "gemini",
+    ]);
   });
 
   it("detects when a company already has a connected llm provider", () => {

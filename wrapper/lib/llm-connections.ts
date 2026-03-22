@@ -20,6 +20,18 @@ const SECRET_NAME_TO_PROVIDER: Record<string, LlmProvider> = {
   GEMINI_API_KEY: "gemini",
 };
 
+const CANONICAL_SECRET_NAME_BY_PROVIDER: Record<LlmProvider, string> = {
+  openai: "OPENAI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  gemini: "GEMINI_API_KEY",
+};
+
+export const LLM_PROVIDER_OPTIONS: Array<{ id: LlmProvider; label: string }> = [
+  { id: "openai", label: "OpenAI (GPT)" },
+  { id: "anthropic", label: "Anthropic (Claude)" },
+  { id: "gemini", label: "Google (Gemini)" },
+];
+
 const ADAPTER_ENV_MAP: Record<LlmProvider, { envKey: string; adapters: string[] }> = {
   openai: {
     envKey: "OPENAI_API_KEY",
@@ -86,6 +98,10 @@ export function resolveLlmProviderFromSecretName(name: string): LlmProvider | nu
   }
 
   return null;
+}
+
+export function getCanonicalLlmSecretName(provider: LlmProvider) {
+  return CANONICAL_SECRET_NAME_BY_PROVIDER[provider];
 }
 
 export function hasConnectedLlmProvider(secrets: KnownSecret[]) {
