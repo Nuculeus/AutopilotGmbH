@@ -4,6 +4,10 @@ import { hasStoredCompanyHqBriefing, normalizeCompanyHqProfile } from "@/lib/com
 import { summarizeCredits } from "@/lib/credits";
 import { evaluateRequiredConnections } from "@/lib/revenue-track";
 import { hasConnectedLlmProvider, hasRunnableLlmBinding } from "@/lib/llm-connections";
+import {
+  isLlmReadinessReady,
+  normalizeAutopilotLlmReadinessMetadata,
+} from "@/lib/llm-readiness";
 import { normalizeAutopilotRevenueMetadata, summarizeRevenueStatus } from "@/lib/revenue-events";
 import { canTargetCompany, listCompanyAgents } from "@/lib/paperclip-admin";
 import { BridgeError, type PaperclipCompanySecret, readPaperclipBridgeJson } from "@/lib/paperclip-bridge";
@@ -85,6 +89,7 @@ export async function getCurrentUserState() {
 
   if (!userId) {
     const revenue = normalizeAutopilotRevenueMetadata(null);
+    const llmReadiness = normalizeAutopilotLlmReadinessMetadata(null);
     return {
       userId: null,
       user: null,
@@ -92,6 +97,8 @@ export async function getCurrentUserState() {
       hasCompanyHqBriefing: false,
       hasLlmConnection: false,
       hasRunnableLlmConnection: false,
+      llmReadiness,
+      hasVerifiedLlmReadiness: false,
       hasRequiredRevenueConnections: false,
       missingRequiredConnections: [],
       revenueStatus: summarizeRevenueStatus(revenue),
@@ -106,6 +113,9 @@ export async function getCurrentUserState() {
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
   const companyHqProfile = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
   const revenue = normalizeAutopilotRevenueMetadata(user.privateMetadata?.autopilotRevenue);
+  const llmReadiness = normalizeAutopilotLlmReadinessMetadata(
+    user.privateMetadata?.autopilotLlmReadiness,
+  );
   const hasCompanyHqBriefing = hasStoredCompanyHqBriefing(companyHqProfile);
   const modelConnection = await resolveModelConnectionState({ userId, autopilotState });
   const requiredConnections = evaluateRequiredConnections({
@@ -121,6 +131,8 @@ export async function getCurrentUserState() {
     hasCompanyHqBriefing,
     hasLlmConnection: modelConnection.hasConnectedLlmProvider,
     hasRunnableLlmConnection: modelConnection.hasRunnableLlmConnection,
+    llmReadiness,
+    hasVerifiedLlmReadiness: isLlmReadinessReady(llmReadiness),
     hasRequiredRevenueConnections: requiredConnections.hasRequiredConnections,
     missingRequiredConnections: requiredConnections.missingConnections,
     revenueStatus: summarizeRevenueStatus(revenue),

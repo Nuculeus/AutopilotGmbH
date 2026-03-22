@@ -91,6 +91,12 @@ describe("buildAppShellModel", () => {
         workspaceStatus: "ready",
         canOpenWorkspace: true,
       },
+      llmReadiness: {
+        status: "ready",
+        summary: "LLM-Zugang ist lauffähig.",
+        checkedAt: "2026-03-22T06:00:00.000Z",
+        probedAdapterType: "codex_local",
+      },
     });
 
     expect(model.layoutMode).toBe("focus");
@@ -120,6 +126,12 @@ describe("buildAppShellModel", () => {
       },
       hasRunnableLlmConnection: true,
       hasRequiredRevenueConnections: true,
+      llmReadiness: {
+        status: "ready",
+        summary: "LLM-Zugang ist lauffähig.",
+        checkedAt: "2026-03-22T06:00:00.000Z",
+        probedAdapterType: "codex_local",
+      },
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -203,6 +215,47 @@ describe("buildAppShellModel", () => {
     expect(model.nextStep.href).toBe("/app/connections?preset=openai");
   });
 
+  it("keeps chat blocked until llm readiness is verified as ready", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/chat",
+      companyHqProfile: {
+        companyGoal: "Wir bauen einen KI-gestuetzten Telefonservice fuer regionale Dienstleister.",
+        offer: "Voice-Rezeption mit Terminhandling und Lead-Qualifizierung.",
+        audience: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
+        tone: "klar, deutsch, vertrauenswuerdig",
+        priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        revenueTrack: "service_business",
+        valueModel: "Retainer fuer laufende Automationsbetreuung.",
+        requiredConnections: ["llm_any", "stripe", "outreach_channel"],
+        nextMilestone: "workspace_ready",
+        updatedAt: "2026-03-21T12:00:00.000Z",
+      },
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+      hasRunnableLlmConnection: true,
+      llmReadiness: {
+        status: "warning",
+        summary: "OpenAI probe failed with unauthorized.",
+        checkedAt: "2026-03-22T06:00:00.000Z",
+        probedAdapterType: "codex_local",
+      },
+      hasRequiredRevenueConnections: true,
+    });
+
+    expect(model.access).toBe("blocked");
+    expect(model.blockedMessage).toContain("OpenAI probe failed");
+    expect(model.nextStep.href).toBe("/app/connections?preset=openai");
+  });
+
   it("keeps chat blocked until required revenue connections are complete", () => {
     const model = buildAppShellModel({
       currentPath: "/app/chat",
@@ -230,6 +283,12 @@ describe("buildAppShellModel", () => {
         canOpenWorkspace: true,
       },
       hasRunnableLlmConnection: true,
+      llmReadiness: {
+        status: "ready",
+        summary: "LLM-Zugang ist lauffähig.",
+        checkedAt: "2026-03-22T06:00:00.000Z",
+        probedAdapterType: "codex_local",
+      },
       hasRequiredRevenueConnections: false,
       missingRequiredConnections: ["stripe", "outreach_channel"],
     });
@@ -266,6 +325,12 @@ describe("buildAppShellModel", () => {
         canOpenWorkspace: true,
       },
       hasRunnableLlmConnection: true,
+      llmReadiness: {
+        status: "ready",
+        summary: "LLM-Zugang ist lauffähig.",
+        checkedAt: "2026-03-22T06:00:00.000Z",
+        probedAdapterType: "codex_local",
+      },
       hasRequiredRevenueConnections: true,
     });
 

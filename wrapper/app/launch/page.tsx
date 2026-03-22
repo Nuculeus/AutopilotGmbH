@@ -9,11 +9,14 @@ export default async function LaunchEntryPage() {
     userId,
     hasCompanyHqBriefing,
     hasRunnableLlmConnection,
+    hasVerifiedLlmReadiness,
     hasRequiredRevenueConnections,
     companyHqProfile,
     creditSummary,
     autopilotState,
   } = await getCurrentUserState();
+  const hasReadyLlmConnection =
+    hasRunnableLlmConnection && hasVerifiedLlmReadiness;
   const flow = resolveLaunchFlowState({
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
@@ -21,16 +24,16 @@ export default async function LaunchEntryPage() {
     companyId: autopilotState.companyId,
     provisioningStatus: autopilotState.provisioningStatus,
     canOpenWorkspace: autopilotState.canOpenWorkspace,
-    hasRunnableLlmConnection,
+    hasRunnableLlmConnection: hasReadyLlmConnection,
     hasRequiredRevenueConnections,
     revenueMilestone: autopilotState.canOpenWorkspace
-      ? advanceRevenueMilestone(companyHqProfile.nextMilestone, hasRequiredRevenueConnections ? "workspace_ready" : "model_ready")
+      ? advanceRevenueMilestone(companyHqProfile.nextMilestone, hasRequiredRevenueConnections && hasReadyLlmConnection ? "workspace_ready" : "model_ready")
       : companyHqProfile.nextMilestone,
   });
   const decision = resolveLaunchEntryDecision({
     userId,
     hasCompanyHqBriefing,
-    hasRunnableLlmConnection,
+    hasRunnableLlmConnection: hasReadyLlmConnection,
     hasRequiredRevenueConnections,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,

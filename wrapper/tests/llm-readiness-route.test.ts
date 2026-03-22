@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMock = vi.fn();
 const getUserMock = vi.fn();
+const updateUserMetadataMock = vi.fn();
 const listCompanyAgentsMock = vi.fn();
 const assessLlmReadinessMock = vi.fn();
 
@@ -10,6 +11,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: vi.fn(async () => ({
     users: {
       getUser: getUserMock,
+      updateUserMetadata: updateUserMetadataMock,
     },
   })),
 }));
@@ -86,5 +88,17 @@ describe("POST /api/connections/llm-readiness", () => {
       companyId: "cmp_123",
       bridgePrincipalId: "clerk:user_123",
     });
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        privateMetadata: expect.objectContaining({
+          autopilotLlmReadiness: expect.objectContaining({
+            status: "ready",
+            summary: "LLM-Zugang ist lauffähig.",
+            probedAdapterType: "codex_local",
+          }),
+        }),
+      }),
+    );
   });
 });

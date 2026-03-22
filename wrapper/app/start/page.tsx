@@ -20,11 +20,14 @@ export default async function StartPage() {
     userId,
     hasCompanyHqBriefing,
     hasRunnableLlmConnection,
+    hasVerifiedLlmReadiness,
     hasRequiredRevenueConnections,
     companyHqProfile,
     creditSummary,
     autopilotState,
   } = await getCurrentUserState();
+  const hasReadyLlmConnection =
+    hasRunnableLlmConnection && hasVerifiedLlmReadiness;
 
   if (userId && !hasCompanyHqBriefing && !autopilotState.companyId && autopilotState.provisioningStatus === "not_started") {
     redirect("/onboarding");
@@ -37,19 +40,19 @@ export default async function StartPage() {
     companyId: autopilotState.companyId,
     provisioningStatus: autopilotState.provisioningStatus,
     canOpenWorkspace: autopilotState.canOpenWorkspace,
-    hasRunnableLlmConnection,
+    hasRunnableLlmConnection: hasReadyLlmConnection,
     hasRequiredRevenueConnections,
     revenueMilestone: autopilotState.canOpenWorkspace
       ? advanceRevenueMilestone(
           companyHqProfile.nextMilestone,
-          hasRequiredRevenueConnections ? "workspace_ready" : "model_ready",
+          hasRequiredRevenueConnections && hasReadyLlmConnection ? "workspace_ready" : "model_ready",
         )
       : companyHqProfile.nextMilestone,
   });
   const launchEntry = resolveLaunchEntryDecision({
     userId,
     hasCompanyHqBriefing,
-    hasRunnableLlmConnection,
+    hasRunnableLlmConnection: hasReadyLlmConnection,
     hasRequiredRevenueConnections,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,

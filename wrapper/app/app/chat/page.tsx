@@ -8,6 +8,7 @@ export default async function AppChatPage() {
     autopilotState,
     companyHqProfile,
     hasRunnableLlmConnection,
+    llmReadiness,
     hasRequiredRevenueConnections,
     missingRequiredConnections,
   } = await getCurrentUserState();
@@ -15,6 +16,7 @@ export default async function AppChatPage() {
     currentPath: "/app/chat",
     companyHqProfile,
     hasRunnableLlmConnection,
+    llmReadiness,
     hasRequiredRevenueConnections,
     missingRequiredConnections,
     creditSummary: {

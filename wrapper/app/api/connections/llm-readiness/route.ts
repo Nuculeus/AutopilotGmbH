@@ -37,5 +37,12 @@ export async function POST() {
     agents,
   });
 
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: {
+      ...user.privateMetadata,
+      autopilotLlmReadiness: readiness,
+    },
+  });
+
   return NextResponse.json(readiness);
 }

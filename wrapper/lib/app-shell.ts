@@ -9,11 +9,13 @@ import {
   isLaunchMilestoneAtLeast,
   type RequiredConnectionId,
 } from "@/lib/revenue-track";
+import type { AutopilotLlmReadinessMetadata } from "@/lib/llm-readiness";
 
 type ShellInput = {
   currentPath: string;
   companyHqProfile: CompanyHqProfile;
   hasRunnableLlmConnection: boolean;
+  llmReadiness?: AutopilotLlmReadinessMetadata;
   hasRequiredRevenueConnections?: boolean;
   missingRequiredConnections?: string[];
   creditSummary: {
@@ -357,6 +359,16 @@ function blockedMessageForMissingLlm() {
   return "Bevor deine Operatoren arbeiten koennen, braucht mindestens ein Agent einen lauffähigen LLM-Pfad mit gebundenem Secret (z. B. OpenAI oder Anthropic).";
 }
 
+function blockedMessageForUnverifiedLlm(input: {
+  summary: string;
+  checkedAt: string | null;
+}) {
+  const checkedAtLabel = input.checkedAt
+    ? `Letzter Check: ${new Date(input.checkedAt).toLocaleString("de-DE")}.`
+    : "Noch kein erfolgreicher Check aufgezeichnet.";
+  return `LLM-Zugang ist noch nicht als bereit verifiziert. Fuehre den LLM-Readiness-Check in Connections aus, bis der Status auf bereit steht. ${checkedAtLabel} ${input.summary}`;
+}
+
 function blockedMessageForMissingRequiredConnections(missingRequiredConnections: string[]) {
   const missingLabels = missingRequiredConnections
     .map((connection) => getRequiredConnectionLabel(connection as RequiredConnectionId))
@@ -368,18 +380,40 @@ function blockedMessageForMissingRequiredConnections(missingRequiredConnections:
 export function buildAppShellModel(input: ShellInput): AppShellModel {
   const canOpenWorkspace = input.autopilotState.canOpenWorkspace;
   const isChatFocus = input.currentPath === "/app/chat";
+  const llmReadiness = input.llmReadiness ?? {
+    status: "blocked" as const,
+    summary: "Noch kein verifizierter LLM-Check vorhanden.",
+    checkedAt: null,
+    probedAdapterType: null,
+  };
   const pageCopy = isChatFocus
     ? buildWorkspaceHandoff(input.companyHqProfile)
     : pageCopyForPath(input.currentPath);
   const needsLlmConnection = isChatFocus && canOpenWorkspace && !input.hasRunnableLlmConnection;
+  const needsLlmReadiness =
+    isChatFocus &&
+    canOpenWorkspace &&
+    input.hasRunnableLlmConnection &&
+    llmReadiness.status !== "ready";
   const needsRequiredConnections =
     isChatFocus &&
     canOpenWorkspace &&
     input.hasRunnableLlmConnection &&
+    llmReadiness.status === "ready" &&
     !(input.hasRequiredRevenueConnections ?? true);
-  const access = needsLlmConnection || needsRequiredConnections ? "blocked" : canOpenWorkspace ? "ready" : "blocked";
+  const access =
+    needsLlmConnection || needsLlmReadiness || needsRequiredConnections
+      ? "blocked"
+      : canOpenWorkspace
+        ? "ready"
+        : "blocked";
   const blockedMessage = needsLlmConnection
     ? blockedMessageForMissingLlm()
+    : needsLlmReadiness
+      ? blockedMessageForUnverifiedLlm({
+          summary: llmReadiness.summary,
+          checkedAt: llmReadiness.checkedAt,
+        })
     : needsRequiredConnections
       ? blockedMessageForMissingRequiredConnections(input.missingRequiredConnections ?? [])
       : canOpenWorkspace
@@ -392,6 +426,13 @@ export function buildAppShellModel(input: ShellInput): AppShellModel {
         description:
           "Wähle jetzt deinen bevorzugten LLM-Zugang aus und hinterlege den API-Key, damit CEO und Operatoren sofort lauffähig sind.",
       }
+    : needsLlmReadiness
+      ? {
+          title: "LLM-Readiness prüfen",
+          href: "/app/connections?preset=openai",
+          description:
+            "Die Verbindung ist gespeichert, aber noch nicht als lauffähig verifiziert. Führe den Readiness-Check aus, bevor der Workspace startet.",
+        }
     : needsRequiredConnections
       ? {
           title: "Pflichtverbindungen abschließen",

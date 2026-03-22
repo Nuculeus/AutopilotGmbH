@@ -25,6 +25,13 @@ export type LlmReadinessReport = {
   checkedAt: string;
 };
 
+export type AutopilotLlmReadinessMetadata = {
+  status: LlmReadinessStatus;
+  summary: string;
+  probedAdapterType: string | null;
+  checkedAt: string | null;
+};
+
 type AssessInput = {
   companyId: string;
   bridgePrincipalId: string;
@@ -40,6 +47,44 @@ const ADAPTER_ENV_KEYS: Record<string, string[]> = {
   openclaw_gateway: ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"],
   process: ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"],
 };
+
+export const EMPTY_AUTOPILOT_LLM_READINESS: AutopilotLlmReadinessMetadata = {
+  status: "blocked",
+  summary:
+    "Noch kein verifizierter LLM-Check vorhanden. Bitte in Connections den Readiness-Check ausführen.",
+  probedAdapterType: null,
+  checkedAt: null,
+};
+
+function asString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+export function normalizeAutopilotLlmReadinessMetadata(
+  value: unknown,
+): AutopilotLlmReadinessMetadata {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return EMPTY_AUTOPILOT_LLM_READINESS;
+  }
+
+  const source = value as Record<string, unknown>;
+  const status =
+    source.status === "ready" || source.status === "warning" ? source.status : "blocked";
+  const summary =
+    asString(source.summary) ??
+    EMPTY_AUTOPILOT_LLM_READINESS.summary;
+
+  return {
+    status,
+    summary,
+    probedAdapterType: asString(source.probedAdapterType),
+    checkedAt: asString(source.checkedAt),
+  };
+}
+
+export function isLlmReadinessReady(value: AutopilotLlmReadinessMetadata) {
+  return value.status === "ready";
+}
 
 const PROBE_ORDER = [
   "codex_local",

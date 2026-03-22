@@ -15,6 +15,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     autopilotState,
     companyHqProfile,
     hasRunnableLlmConnection,
+    llmReadiness,
     hasRequiredRevenueConnections,
     missingRequiredConnections,
   } = await getCurrentUserState();
@@ -22,6 +23,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     currentPath,
     companyHqProfile,
     hasRunnableLlmConnection,
+    llmReadiness,
     hasRequiredRevenueConnections,
     missingRequiredConnections,
     creditSummary: {
