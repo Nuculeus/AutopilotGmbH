@@ -84,6 +84,27 @@ function llmReadinessResetSummary(secretName: string) {
   return "LLM-Verbindung wurde aktualisiert. Bitte den Readiness-Check erneut ausführen, bevor du den Workspace nutzt.";
 }
 
+type NormalizedSecretCreatePayload = {
+  name: string;
+  value: string;
+  provider: string;
+  description: string | null;
+  externalRef: string | null;
+} & Record<string, unknown>;
+
+function isAlreadyExistsConflict(status: number, payload: unknown) {
+  if (status !== 409 || !payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const error =
+    "error" in payload && typeof payload.error === "string"
+      ? payload.error.toLowerCase()
+      : "";
+
+  return error.includes("already exists");
+}
+
 function normalizeSecretCreatePayload(rawPayload: unknown) {
   if (!rawPayload || typeof rawPayload !== "object" || Array.isArray(rawPayload)) {
     throw new BridgeError(400, "Invalid secret payload.");
@@ -114,6 +135,73 @@ function normalizeSecretCreatePayload(rawPayload: unknown) {
     provider,
     description: description || null,
     externalRef: externalRef || null,
+  };
+}
+
+async function rotateExistingSecret(input: {
+  normalizedPayload: NormalizedSecretCreatePayload;
+  userId: string;
+  autopilotState: ReturnType<typeof summarizeAutopilotState>;
+}) {
+  const secrets = await readPaperclipBridgeJson<PaperclipCompanySecret[]>({
+    request: new Request("http://localhost/api/paperclip/secrets"),
+    pathSegments: ["secrets"],
+    userId: input.userId,
+    autopilotState: input.autopilotState,
+  });
+
+  const existing = secrets.find((secret) => secret.name === input.normalizedPayload.name);
+  if (!existing) {
+    return null;
+  }
+
+  const rotateRequest = new Request(
+    `http://localhost/api/paperclip/secrets/${existing.id}/rotate`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        value: input.normalizedPayload.value,
+        externalRef: input.normalizedPayload.externalRef,
+      }),
+    },
+  );
+  const rotateResponse = await bridgePaperclipRequest({
+    request: rotateRequest,
+    pathSegments: ["secrets", existing.id, "rotate"],
+    userId: input.userId,
+    autopilotState: input.autopilotState,
+  });
+
+  const rotatePayload = await rotateResponse.json().catch(() => null);
+  if (!rotateResponse.ok) {
+    return {
+      status: rotateResponse.status,
+      payload: rotatePayload,
+    };
+  }
+
+  if (
+    input.normalizedPayload.description !== null
+    && input.normalizedPayload.description !== existing.description
+  ) {
+    const patchRequest = new Request(`http://localhost/api/paperclip/secrets/${existing.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ description: input.normalizedPayload.description }),
+    });
+
+    await bridgePaperclipRequest({
+      request: patchRequest,
+      pathSegments: ["secrets", existing.id],
+      userId: input.userId,
+      autopilotState: input.autopilotState,
+    }).catch(() => null);
+  }
+
+  return {
+    status: rotateResponse.status,
+    payload: rotatePayload,
   };
 }
 
@@ -265,9 +353,11 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
 
   try {
     let bridgeRequest = request;
+    let normalizedSecretPayload: NormalizedSecretCreatePayload | null = null;
     if (isSecretCreate(path, request.method)) {
       const rawPayload = await request.json().catch(() => null);
       const normalizedPayload = normalizeSecretCreatePayload(rawPayload);
+      normalizedSecretPayload = normalizedPayload;
       const headers = new Headers(request.headers);
       headers.set("content-type", "application/json");
       bridgeRequest = new Request(request.url, {
@@ -302,9 +392,26 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
     }
 
     if (isSecretCreate(path, request.method) && (contentType ?? "").includes("application/json")) {
-      const payload = await upstream.json().catch(() => null);
+      let responseStatus = upstream.status;
+      let payload = await upstream.json().catch(() => null);
 
-      if (upstream.ok && isSavedSecretPayload(payload)) {
+      if (
+        normalizedSecretPayload
+        && isAlreadyExistsConflict(upstream.status, payload)
+      ) {
+        const rotated = await rotateExistingSecret({
+          normalizedPayload: normalizedSecretPayload,
+          userId,
+          autopilotState,
+        });
+
+        if (rotated) {
+          responseStatus = rotated.status;
+          payload = rotated.payload;
+        }
+      }
+
+      if (responseStatus >= 200 && responseStatus < 300 && isSavedSecretPayload(payload)) {
         await bindSavedLlmSecretToCompanyAgents({
           autopilotState,
           secret: payload,
@@ -326,7 +433,7 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
         }
       }
 
-      return NextResponse.json(payload, { status: upstream.status, headers });
+      return NextResponse.json(payload, { status: responseStatus, headers });
     }
 
     if (isWorkspaceAgentCreate(path, request.method) && (contentType ?? "").includes("application/json")) {

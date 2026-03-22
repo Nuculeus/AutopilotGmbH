@@ -219,4 +219,116 @@ describe("POST /api/paperclip/secrets", () => {
       }),
     );
   });
+
+  it("rotates existing secret when canonical name already exists", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      privateMetadata: {},
+      publicMetadata: {
+        autopilotProvisioning: {
+          companyId: "cmp_123",
+          companyName: "Meine Autopilot GmbH",
+          provisioningStatus: "active",
+          workspaceStatus: "ready",
+          bridgePrincipalId: "clerk:user_123",
+        },
+      },
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "Secret already exists: OPENAI_API_KEY",
+          }),
+          { status: 409, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: "sec_openai",
+              name: "OPENAI_API_KEY",
+              provider: "local_encrypted",
+              externalRef: null,
+              latestVersion: 1,
+              description: "OpenAI Zugang",
+              updatedAt: "2026-03-21T10:00:00.000Z",
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "sec_openai",
+            name: "OPENAI_API_KEY",
+            provider: "local_encrypted",
+            externalRef: null,
+            latestVersion: 2,
+            description: "OpenAI Zugang",
+            updatedAt: "2026-03-22T10:00:00.000Z",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { POST } = await import("@/app/api/paperclip/[...path]/route");
+    const response = await POST(
+      new Request("http://localhost/api/paperclip/secrets", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "openai_api_key",
+          value: "sk-test-replaced",
+          description: "OpenAI Zugang",
+          provider: "local_encrypted",
+        }),
+      }),
+      { params: Promise.resolve({ path: ["secrets"] }) },
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual(
+      expect.objectContaining({
+        id: "sec_openai",
+        name: "OPENAI_API_KEY",
+        latestVersion: 2,
+      }),
+    );
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://paperclip:3100/api/companies/cmp_123/secrets");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("http://paperclip:3100/api/secrets/sec_openai/rotate");
+    expect(fetchMock.mock.calls[2]?.[1]).toEqual(
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          value: "sk-test-replaced",
+          externalRef: null,
+        }),
+      }),
+    );
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        privateMetadata: expect.objectContaining({
+          autopilotLlmReadiness: expect.objectContaining({
+            status: "blocked",
+          }),
+        }),
+      }),
+    );
+  });
 });

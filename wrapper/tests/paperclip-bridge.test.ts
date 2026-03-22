@@ -60,6 +60,49 @@ describe("paperclip bridge", () => {
     );
   });
 
+  it("forwards secret rotate and delete routes for the mapped company", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const autopilotState = {
+      companyId: "cmp_123",
+      bridgePrincipalId: "clerk:user_123",
+      provisioningStatus: "active" as const,
+      workspaceStatus: "ready" as const,
+      canOpenWorkspace: true,
+    };
+
+    await bridgePaperclipRequest({
+      request: new Request("http://localhost/api/paperclip/secrets/sec_1/rotate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ value: "sk-test" }),
+      }),
+      pathSegments: ["secrets", "sec_1", "rotate"],
+      userId: "user_123",
+      autopilotState,
+    });
+
+    await bridgePaperclipRequest({
+      request: new Request("http://localhost/api/paperclip/secrets/sec_1", {
+        method: "DELETE",
+      }),
+      pathSegments: ["secrets", "sec_1"],
+      userId: "user_123",
+      autopilotState,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://paperclip:3100/api/secrets/sec_1/rotate");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("http://paperclip:3100/api/secrets/sec_1");
+  });
+
   it("never trusts client-supplied companyId query parameters", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {

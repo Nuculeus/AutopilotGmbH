@@ -193,6 +193,31 @@ function resolveRouteSpec(
     };
   }
 
+  if (
+    head === "secrets"
+    && tail.length === 2
+    && tail[1] === "rotate"
+    && normalizedMethod === "POST"
+  ) {
+    return {
+      alias: "secrets",
+      method: normalizedMethod,
+      targetPath: `/api/secrets/${tail[0]}/rotate`,
+    };
+  }
+
+  if (
+    head === "secrets"
+    && tail.length === 1
+    && (normalizedMethod === "PATCH" || normalizedMethod === "DELETE")
+  ) {
+    return {
+      alias: "secrets",
+      method: normalizedMethod,
+      targetPath: `/api/secrets/${tail[0]}`,
+    };
+  }
+
   if (head === "workspace" && (normalizedMethod === "GET" || normalizedMethod === "HEAD")) {
     const targetPath = tail.length > 0 ? `/${tail.join("/")}${search}` : `/${search}`;
     return {
