@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
 import { hasStoredCompanyHqBriefing, normalizeCompanyHqProfile } from "@/lib/company-hq";
+import { hasAdminBillingBypass } from "@/lib/admin-access";
 import { summarizeCredits } from "@/lib/credits";
 import { evaluateRequiredConnections } from "@/lib/revenue-track";
 import { hasConnectedLlmProvider, hasRunnableLlmBinding } from "@/lib/llm-connections";
@@ -95,6 +96,7 @@ export async function getCurrentUserState() {
       user: null,
       companyHqProfile: normalizeCompanyHqProfile(null),
       hasCompanyHqBriefing: false,
+      hasBillingBypass: false,
       hasLlmConnection: false,
       hasRunnableLlmConnection: false,
       llmReadiness,
@@ -117,6 +119,7 @@ export async function getCurrentUserState() {
     user.privateMetadata?.autopilotLlmReadiness,
   );
   const hasCompanyHqBriefing = hasStoredCompanyHqBriefing(companyHqProfile);
+  const hasBillingBypass = hasAdminBillingBypass(user as Parameters<typeof hasAdminBillingBypass>[0]);
   const modelConnection = await resolveModelConnectionState({ userId, autopilotState });
   const requiredConnections = evaluateRequiredConnections({
     hasLlmConnection: modelConnection.hasRunnableLlmConnection,
@@ -129,6 +132,7 @@ export async function getCurrentUserState() {
     user,
     companyHqProfile,
     hasCompanyHqBriefing,
+    hasBillingBypass,
     hasLlmConnection: modelConnection.hasConnectedLlmProvider,
     hasRunnableLlmConnection: modelConnection.hasRunnableLlmConnection,
     llmReadiness,

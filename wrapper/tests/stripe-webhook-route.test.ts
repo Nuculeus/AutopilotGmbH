@@ -93,6 +93,8 @@ describe("POST /api/stripe/webhook", () => {
         publicMetadata: expect.objectContaining({
           autopilotCredits: expect.objectContaining({
             plan: "starter",
+            stripeCustomerId: "cus_test_123",
+            lastCheckoutSessionId: "cs_test_123",
           }),
         }),
         privateMetadata: expect.objectContaining({
@@ -108,6 +110,83 @@ describe("POST /api/stripe/webhook", () => {
                 kind: "revenue_recorded",
                 amountCents: 4900,
                 currency: "eur",
+              }),
+            ]),
+          }),
+        }),
+      }),
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("uses invoice parent subscription metadata when direct clerkUserId is missing", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-21T20:40:00.000Z"));
+
+    constructEventMock.mockReturnValue({
+      id: "evt_invoice_paid_parent_meta_123",
+      type: "invoice.paid",
+      data: {
+        object: {
+          id: "in_parent_123",
+          amount_paid: 12900,
+          currency: "eur",
+          metadata: {},
+          parent: {
+            subscription_details: {
+              metadata: {
+                clerkUserId: "user_123",
+              },
+            },
+          },
+        },
+      },
+    });
+
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotCredits: {
+          plan: "starter",
+        },
+      },
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir bauen KI-Agenten fuer KMU.",
+          offer: "Done-for-you Agentenbetrieb.",
+          audience: "Regionale Dienstleister.",
+          tone: "Klar.",
+          priorities: "Erste 5 Kunden.",
+          revenueTrack: "service_business",
+          valueModel: "Retainer + Setup-Fee.",
+          requiredConnections: ["llm_any", "stripe", "outreach_channel"],
+          nextMilestone: "first_checkout_live",
+        },
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const response = await POST(
+      new Request("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: {
+          "stripe-signature": "sig_test",
+        },
+        body: JSON.stringify({ id: "evt_invoice_paid_parent_meta_123" }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        privateMetadata: expect.objectContaining({
+          autopilotRevenue: expect.objectContaining({
+            revenueEvents: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "revenue_recorded",
+                amountCents: 12900,
               }),
             ]),
           }),

@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "smoke:auth": "node ./scripts/smoke/authenticated-flow.mjs",
+    "smoke:stripe-webhook": "node ./scripts/smoke/stripe-webhook.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.5",

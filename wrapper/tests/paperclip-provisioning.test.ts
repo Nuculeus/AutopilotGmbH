@@ -21,6 +21,8 @@ describe("POST /api/companies/provision", () => {
     vi.unstubAllGlobals();
     process.env.PAPERCLIP_INTERNAL_URL = "http://paperclip:3100";
     process.env.INTERNAL_BRIDGE_SECRET = "bridge-secret";
+    delete process.env.AUTOPILOT_ENABLE_ADMIN_BILLING_BYPASS;
+    delete process.env.AUTOPILOT_ADMIN_USER_IDS;
   });
 
   it("creates one company and persists company metadata for the signed-in user", async () => {
@@ -274,5 +276,58 @@ describe("POST /api/companies/provision", () => {
     expect(response.status).toBe(409);
     expect(String(payload.error)).toContain("Briefing");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows provisioning without credits for allowlisted admin bypass users", async () => {
+    process.env.AUTOPILOT_ENABLE_ADMIN_BILLING_BYPASS = "true";
+    process.env.AUTOPILOT_ADMIN_USER_IDS = "user_123";
+
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotCredits: {
+          plan: "free",
+          consumedCredits: 20,
+          manualCredits: 0,
+        },
+      },
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir automatisieren Support fuer DACH-KMU.",
+          offer: "KI-Agenten als Service.",
+          audience: "Regionale Unternehmen.",
+          tone: "Klar, pragmatisch.",
+          priorities: "Ersten zahlenden Kunden gewinnen.",
+        },
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          paperclipCompanyId: "cmp_123",
+          companyName: "Meine Autopilot GmbH",
+          bridgePrincipalId: "clerk:user_123",
+          status: "bootstrapped",
+        }),
+      }),
+    );
+
+    const { POST } = await import("@/app/api/companies/provision/route");
+    const response = await POST(
+      new Request("http://localhost/api/companies/provision", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: "Meine Autopilot GmbH" }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateUserMetadataMock).toHaveBeenCalled();
   });
 });

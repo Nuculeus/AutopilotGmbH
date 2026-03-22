@@ -23,6 +23,7 @@ type LaunchEntryInput = {
   hasCompanyHqBriefing: boolean;
   hasRunnableLlmConnection: boolean;
   hasRequiredRevenueConnections: boolean;
+  hasBillingBypass?: boolean;
   availableCredits: number;
   plan: AutopilotPlan;
   companyId: string | null;
@@ -52,6 +53,7 @@ export function resolveLaunchEntryDecision(
   const flow = resolveLaunchFlowState({
     availableCredits: input.availableCredits,
     plan: input.plan,
+    hasBillingBypass: input.hasBillingBypass,
     hasCompanyHqBriefing: input.hasCompanyHqBriefing,
     companyId: input.companyId,
     provisioningStatus: input.provisioningStatus,

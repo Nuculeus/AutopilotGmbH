@@ -8,6 +8,7 @@ export default async function LaunchEntryPage() {
   const {
     userId,
     hasCompanyHqBriefing,
+    hasBillingBypass,
     hasRunnableLlmConnection,
     hasVerifiedLlmReadiness,
     hasRequiredRevenueConnections,
@@ -20,6 +21,7 @@ export default async function LaunchEntryPage() {
   const flow = resolveLaunchFlowState({
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
+    hasBillingBypass,
     hasCompanyHqBriefing,
     companyId: autopilotState.companyId,
     provisioningStatus: autopilotState.provisioningStatus,
@@ -35,6 +37,7 @@ export default async function LaunchEntryPage() {
     hasCompanyHqBriefing,
     hasRunnableLlmConnection: hasReadyLlmConnection,
     hasRequiredRevenueConnections,
+    hasBillingBypass,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,

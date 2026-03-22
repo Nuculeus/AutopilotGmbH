@@ -35,6 +35,7 @@ export type LaunchFlowState = {
 export type LaunchFlowInput = {
   availableCredits: number;
   plan: AutopilotPlan;
+  hasBillingBypass?: boolean;
   hasCompanyHqBriefing: boolean;
   companyId: string | null;
   provisioningStatus: ProvisioningStatus;
@@ -49,7 +50,10 @@ function hasPlanAccess(plan: AutopilotPlan) {
 }
 
 export function resolveLaunchFlowState(input: LaunchFlowInput): LaunchFlowState {
-  const hasBudget = input.availableCredits > 0 || hasPlanAccess(input.plan);
+  const hasBudget =
+    input.availableCredits > 0 ||
+    hasPlanAccess(input.plan) ||
+    input.hasBillingBypass === true;
 
   if (input.provisioningStatus === "failed") {
     return {

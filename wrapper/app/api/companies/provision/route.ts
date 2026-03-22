@@ -1,5 +1,6 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { hasAdminBillingBypass } from "@/lib/admin-access";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
 import { hasStoredCompanyHqBriefing, normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { bootstrapCompany } from "@/lib/paperclip-admin";
@@ -30,6 +31,9 @@ export async function POST(request: Request) {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
+  const hasBillingBypass = hasAdminBillingBypass(
+    user as Parameters<typeof hasAdminBillingBypass>[0],
+  );
   const browserNavigation = isBrowserNavigation(request);
 
   if (autopilotState.companyId && autopilotState.provisioningStatus === "active") {
@@ -43,7 +47,7 @@ export async function POST(request: Request) {
     return browserNavigation ? redirectToLaunch(request) : NextResponse.json(payload);
   }
 
-  if (autopilotState.creditSummary.availableCredits <= 0) {
+  if (autopilotState.creditSummary.availableCredits <= 0 && !hasBillingBypass) {
     return NextResponse.json(
       { error: "No credits or active plan available" },
       { status: 402 },

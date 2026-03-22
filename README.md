@@ -72,6 +72,8 @@ Caddy zieht danach das Zertifikat automatisch, sobald die Domain auf den Server 
 - `PAPERCLIP_AUTH_DISABLE_SIGN_UP=true`
 - `PAPERCLIP_ALLOWED_HOSTNAMES=paperclip`
 - `PAPERCLIP_BRIDGE_READS_PER_MINUTE` und `PAPERCLIP_BRIDGE_WRITES_PER_MINUTE`: Launch-Guardrails gegen Poweruser-Spikes
+- `PAPERCLIP_BRIDGE_WORKSPACE_API_READS_PER_MINUTE` und `PAPERCLIP_BRIDGE_WORKSPACE_API_WRITES_PER_MINUTE`: separate Burst-Limits fuer Workspace-API-Aufrufe
+- `AUTOPILOT_ENABLE_ADMIN_BILLING_BYPASS`, `AUTOPILOT_ADMIN_USER_IDS`, `AUTOPILOT_ADMIN_EMAILS`: optionaler Admin-Bypass fuer Billing-Tests ohne Stripe-Checkout
 
 ## Hinweise
 
@@ -79,3 +81,18 @@ Caddy zieht danach das Zertifikat automatisch, sobald die Domain auf den Server 
 - Die Launch-Bridge deckt aktuell bewusst nur eine kleine Allowlist produktiver Paperclip-Flächen ab.
 - Redis/BullMQ und tiefere Queue-Steuerung sind noch nicht Teil dieses Compose-Schnitts.
 - `docker compose config` konnte auf diesem Host zuletzt nicht geprüft werden, weil lokal kein `docker`-Binary installiert ist.
+
+## Smoke Tests
+
+Im Wrapper gibt es zwei direkte Smoke-Skripte:
+
+- Auth-Flow (eingeloggt, inklusive Checkout-Einstieg):
+  `pnpm --dir wrapper smoke:auth`
+  - benoetigt `SMOKE_CLERK_SESSION_COOKIE` (oder `E2E_SESSION_COOKIE`)
+  - optional `SMOKE_APP_URL`
+- Stripe-Webhook (signierter Testevent gegen produktives Endpoint):
+  `pnpm --dir wrapper smoke:stripe-webhook`
+  - benoetigt `STRIPE_WEBHOOK_SECRET` und `SMOKE_CLERK_USER_ID`
+  - optional `SMOKE_AMOUNT_CENTS`
+
+Hinweis: der Admin-Billing-Bypass ist absichtlich `opt-in` und nur fuer allowlistete IDs/Emails gedacht. Fuer reale Kunden bleibt Stripe der Standardpfad.

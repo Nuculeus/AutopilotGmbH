@@ -10,6 +10,46 @@ import {
 } from "@/lib/revenue-events";
 import { getStripe } from "@/lib/stripe";
 
+function asString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function asRecord(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function extractClerkUserIdFromCheckoutSession(
+  session: Record<string, unknown>,
+) {
+  const metadata = asRecord(session.metadata);
+  const fromMetadata = asString(metadata?.clerkUserId);
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+
+  return asString(session.client_reference_id);
+}
+
+function extractClerkUserIdFromInvoice(invoice: Record<string, unknown>) {
+  const fromMetadata = asString(asRecord(invoice.metadata)?.clerkUserId);
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+
+  const parent = asRecord(invoice.parent);
+  const subscriptionDetails = asRecord(parent?.subscription_details);
+  const fromParentMetadata = asString(asRecord(subscriptionDetails?.metadata)?.clerkUserId);
+  if (fromParentMetadata) {
+    return fromParentMetadata;
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -29,8 +69,10 @@ export async function POST(request: Request) {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const clerkUserId = session.metadata?.clerkUserId;
-      const targetPlan = session.metadata?.targetPlan;
+      const sessionRecord = asRecord(session) ?? {};
+      const sessionMetadata = asRecord(sessionRecord.metadata);
+      const clerkUserId = extractClerkUserIdFromCheckoutSession(sessionRecord);
+      const targetPlan = asString(sessionMetadata?.targetPlan);
 
       if (clerkUserId) {
         const client = await clerkClient();
@@ -105,6 +147,10 @@ export async function POST(request: Request) {
             autopilotCredits: {
               ...current,
               plan: targetPlan === "pro" ? "pro" : "starter",
+              stripeCustomerId:
+                typeof session.customer === "string" ? session.customer : current.stripeCustomerId,
+              lastCheckoutSessionId:
+                typeof session.id === "string" ? session.id : current.lastCheckoutSessionId,
             },
           },
           privateMetadata: {
@@ -115,9 +161,6 @@ export async function POST(request: Request) {
               updatedAt: createdAt,
             },
             autopilotRevenue: nextRevenue,
-            stripeCustomerId:
-              typeof session.customer === "string" ? session.customer : null,
-            lastCheckoutSessionId: session.id,
           },
         });
       }
@@ -132,7 +175,8 @@ export async function POST(request: Request) {
 
     if (event.type === "invoice.paid") {
       const invoice = event.data.object;
-      const clerkUserId = invoice.metadata?.clerkUserId;
+      const invoiceRecord = asRecord(invoice) ?? {};
+      const clerkUserId = extractClerkUserIdFromInvoice(invoiceRecord);
 
       if (clerkUserId) {
         const client = await clerkClient();
@@ -200,7 +244,8 @@ export async function POST(request: Request) {
 
     if (event.type === "invoice.payment_failed") {
       const invoice = event.data.object;
-      const clerkUserId = invoice.metadata?.clerkUserId;
+      const invoiceRecord = asRecord(invoice) ?? {};
+      const clerkUserId = extractClerkUserIdFromInvoice(invoiceRecord);
 
       if (clerkUserId) {
         const client = await clerkClient();

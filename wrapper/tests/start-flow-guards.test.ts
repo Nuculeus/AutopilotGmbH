@@ -75,4 +75,22 @@ describe("resolveLaunchFlowState", () => {
     expect(flow.stage).toBe("model_ready");
     expect(flow.primaryAction.href).toBe("/app/connections?preset=openai");
   });
+
+  it("allows admin billing bypass users to continue without credits", () => {
+    const flow = resolveLaunchFlowState({
+      availableCredits: 0,
+      plan: "free",
+      hasBillingBypass: true,
+      hasCompanyHqBriefing: true,
+      companyId: null,
+      provisioningStatus: "not_started",
+      canOpenWorkspace: false,
+      hasRunnableLlmConnection: false,
+      hasRequiredRevenueConnections: false,
+      revenueMilestone: "briefing_ready",
+    });
+
+    expect(flow.stage).toBe("briefing_ready");
+    expect(flow.canProvisionCompany).toBe(true);
+  });
 });
