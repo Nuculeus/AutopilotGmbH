@@ -119,11 +119,16 @@ async function run() {
         `status=${connectionsRes.status}${connectionsLocation ? ` location=${connectionsLocation}` : ""}`,
       );
     } else {
-      const profileRes = await request("/api/company-hq");
+      const profileRes = await request("/api/revenue/events", {
+        method: "POST",
+        body: JSON.stringify({
+          event: "invalid_auth_probe",
+        }),
+      });
       const profileBody = await profileRes.text();
       logStep(
-        "Company HQ API auth access",
-        profileRes.status !== 401,
+        "Authenticated API auth access",
+        profileRes.status === 400,
         `status=${profileRes.status} body=${profileBody.slice(0, 180)}`,
       );
     }
