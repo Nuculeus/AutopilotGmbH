@@ -2,7 +2,11 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { recordRevenueEventForUser, upsertCompanyHqForUser } from "@/lib/control-plane-store";
-import { CREDIT_POLICY, normalizeCreditMetadata } from "@/lib/credits";
+import {
+  CREDIT_POLICY,
+  markStripeEventProcessed,
+  normalizeCreditMetadata,
+} from "@/lib/credits";
 import {
   advanceMilestoneFromEvent,
   normalizeAutopilotRevenueMetadata,
@@ -146,7 +150,7 @@ export async function POST(request: Request) {
           publicMetadata: {
             ...user.publicMetadata,
             autopilotCredits: {
-              ...current,
+              ...markStripeEventProcessed(current, event.id),
               plan: targetPlan === "pro" ? "pro" : "starter",
               stripeCustomerId:
                 typeof session.customer === "string" ? session.customer : current.stripeCustomerId,
@@ -220,6 +224,9 @@ export async function POST(request: Request) {
       if (clerkUserId) {
         const client = await clerkClient();
         const user = await client.users.getUser(clerkUserId);
+        const currentCredits = normalizeCreditMetadata(
+          user.publicMetadata?.autopilotCredits,
+        );
         const currentProfile = normalizeCompanyHqProfile(
           user.privateMetadata?.autopilotCompanyHq,
         );
@@ -267,6 +274,9 @@ export async function POST(request: Request) {
         await client.users.updateUserMetadata(clerkUserId, {
           publicMetadata: {
             ...user.publicMetadata,
+            autopilotCredits: {
+              ...markStripeEventProcessed(currentCredits, event.id),
+            },
           },
           privateMetadata: {
             ...user.privateMetadata,
@@ -311,6 +321,9 @@ export async function POST(request: Request) {
       if (clerkUserId) {
         const client = await clerkClient();
         const user = await client.users.getUser(clerkUserId);
+        const currentCredits = normalizeCreditMetadata(
+          user.publicMetadata?.autopilotCredits,
+        );
         const currentProfile = normalizeCompanyHqProfile(
           user.privateMetadata?.autopilotCompanyHq,
         );
@@ -353,6 +366,9 @@ export async function POST(request: Request) {
         await client.users.updateUserMetadata(clerkUserId, {
           publicMetadata: {
             ...user.publicMetadata,
+            autopilotCredits: {
+              ...markStripeEventProcessed(currentCredits, event.id),
+            },
           },
           privateMetadata: {
             ...user.privateMetadata,

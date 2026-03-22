@@ -95,6 +95,7 @@ describe("POST /api/stripe/webhook", () => {
             plan: "starter",
             stripeCustomerId: "cus_test_123",
             lastCheckoutSessionId: "cs_test_123",
+            processedStripeEventIds: expect.arrayContaining(["evt_checkout_123"]),
           }),
         }),
         privateMetadata: expect.objectContaining({
@@ -189,6 +190,11 @@ describe("POST /api/stripe/webhook", () => {
                 amountCents: 12900,
               }),
             ]),
+          }),
+        }),
+        publicMetadata: expect.objectContaining({
+          autopilotCredits: expect.objectContaining({
+            processedStripeEventIds: expect.arrayContaining(["evt_invoice_paid_parent_meta_123"]),
           }),
         }),
       }),
@@ -338,6 +344,11 @@ describe("POST /api/stripe/webhook", () => {
             ]),
           }),
         }),
+        publicMetadata: expect.objectContaining({
+          autopilotCredits: expect.objectContaining({
+            processedStripeEventIds: expect.arrayContaining(["evt_invoice_paid_123"]),
+          }),
+        }),
       }),
     );
 
@@ -412,6 +423,11 @@ describe("POST /api/stripe/webhook", () => {
                 currency: "eur",
               }),
             ]),
+          }),
+        }),
+        publicMetadata: expect.objectContaining({
+          autopilotCredits: expect.objectContaining({
+            processedStripeEventIds: expect.arrayContaining(["evt_invoice_failed_123"]),
           }),
         }),
       }),

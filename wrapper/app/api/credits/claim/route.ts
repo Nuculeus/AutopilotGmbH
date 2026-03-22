@@ -2,6 +2,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import {
   CREDIT_POLICY,
+  appendCreditLedgerEntry,
   getLaunchBonusExpiryDate,
   normalizeCreditMetadata,
 } from "@/lib/credits";
@@ -27,7 +28,15 @@ export async function POST(request: Request) {
   await client.users.updateUserMetadata(userId, {
     publicMetadata: {
       autopilotCredits: {
-        ...current,
+        ...appendCreditLedgerEntry(current, {
+          id: `ledger_launch_bonus_${new Date().toISOString()}`,
+          eventKind: "grant",
+          creditsDelta: CREDIT_POLICY.launchBonusCredits,
+          euroCostCents: 0,
+          providerCostCents: 0,
+          note: "launch_bonus",
+          createdAt: new Date().toISOString(),
+        }),
         plan: current.plan === "free" ? "launch" : current.plan,
         launchBonusClaimed: true,
         launchBonusClaimedAt: new Date().toISOString(),
