@@ -3,7 +3,20 @@ import postgres from "postgres";
 import type { AutopilotState } from "@/lib/autopilot-metadata";
 import type { CompanyHqProfile } from "@/lib/company-hq";
 import { resolveControlPlaneDatabaseUrl } from "@/lib/db/client";
+import {
+  getPrimaryVentureByWorkspaceId,
+  getVentureSpecByVentureId,
+  getWorkspaceByClerkUserId,
+  listRevenueEventsByVentureId,
+} from "@/lib/db/read-repository";
 import { ensureControlPlaneSchema } from "@/lib/db/schema";
+import type {
+  RevenueEventRow,
+  SqlClient,
+  VentureRow,
+  VentureSpecRow,
+  WorkspaceRow,
+} from "@/lib/db/types";
 import {
   advanceMilestoneFromEvent,
   type AutopilotRevenueMetadata,
@@ -16,55 +29,6 @@ import {
   type RequiredConnectionId,
   type RevenueTrack,
 } from "@/lib/revenue-track";
-
-type SqlClient = postgres.Sql<Record<string, unknown>>;
-
-type WorkspaceRow = {
-  id: string;
-  clerk_user_id: string;
-  company_id: string | null;
-  company_name: string | null;
-  bridge_principal_id: string | null;
-};
-
-type VentureRow = {
-  id: string;
-  workspace_id: string;
-  name: string;
-  revenue_track: RevenueTrack;
-  status: string;
-};
-
-type VentureSpecRow = {
-  venture_id: string;
-  company_goal: string;
-  offer: string;
-  audience: string;
-  tone: string;
-  priorities: string;
-  revenue_track: RevenueTrack;
-  value_model: string;
-  required_connections_json: unknown;
-  next_milestone: LaunchRevenueMilestone | null;
-  proof_target: string;
-  budget_cap_cents: number | null;
-  acquisition_channel: string;
-  payment_node: string;
-  delivery_node: string;
-  autonomy_level: string;
-  updated_at: string;
-};
-
-type RevenueEventRow = {
-  id: string;
-  kind: RevenueEvent["kind"] | "first_value_created";
-  source: RevenueEvent["source"];
-  amount_cents: number | null;
-  currency: string | null;
-  external_ref: string | null;
-  summary: string | null;
-  created_at: string;
-};
 
 type QueueRunInput = {
   ventureId: string;
@@ -1102,65 +1066,27 @@ export async function getPrimaryControlPlaneSnapshotForUser(input: {
   }
   await ensureSchema(sql);
 
-  const workspaceRows = await sql<WorkspaceRow[]>`
-    SELECT id, clerk_user_id, company_id, company_name, bridge_principal_id
-    FROM workspaces
-    WHERE clerk_user_id = ${input.clerkUserId}
-    LIMIT 1
-  `;
-  const workspace = workspaceRows[0];
+  const workspace = await getWorkspaceByClerkUserId(sql, input.clerkUserId);
   if (!workspace) {
     return null;
   }
 
-  const venture = await getPrimaryVenture({
-    sql,
-    workspaceId: workspace.id,
-  });
+  const venture = await getPrimaryVentureByWorkspaceId(sql, workspace.id);
   if (!venture) {
     return null;
   }
 
-  const specRows = await sql<VentureSpecRow[]>`
-    SELECT
-      venture_id,
-      company_goal,
-      offer,
-      audience,
-      tone,
-      priorities,
-      revenue_track,
-      value_model,
-      required_connections_json,
-      next_milestone,
-      proof_target,
-      budget_cap_cents,
-      acquisition_channel,
-      payment_node,
-      delivery_node,
-      autonomy_level,
-      updated_at::text
-    FROM venture_specs
-    WHERE venture_id = ${venture.id}
-    LIMIT 1
-  `;
-
-  if (!specRows[0]) {
+  const spec = await getVentureSpecByVentureId(sql, venture.id);
+  if (!spec) {
     return null;
   }
 
-  const revenueRows = await sql<RevenueEventRow[]>`
-    SELECT id, kind, source, amount_cents, currency, external_ref, summary, created_at::text
-    FROM revenue_events
-    WHERE venture_id = ${venture.id}
-    ORDER BY created_at ASC
-    LIMIT 300
-  `;
+  const revenueRows = await listRevenueEventsByVentureId(sql, venture.id);
 
   return {
     workspaceId: workspace.id,
     ventureId: venture.id,
-    profile: toCompanyProfile(specRows[0]),
+    profile: toCompanyProfile(spec),
     revenue: toRevenueMetadata(revenueRows),
   };
 }
