@@ -8,12 +8,15 @@ export const CONTROL_PLANE_FOUNDATION_TABLES = [
   "venture_specs",
   "connection_bindings",
   "run_executions",
+  "run_steps",
   "experiments",
   "experiment_variants",
   "metric_events",
   "revenue_events",
   "credit_ledger",
   "approval_gates",
+  "usage_events",
+  "billing_accounts",
 ] as const;
 
 export const CONTROL_PLANE_SCHEMA_SQL = `
@@ -93,6 +96,22 @@ export const CONTROL_PLANE_SCHEMA_SQL = `
 
   CREATE INDEX IF NOT EXISTS run_executions_venture_idx ON run_executions(venture_id, created_at DESC);
 
+  CREATE TABLE IF NOT EXISTS run_steps (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES run_executions(id) ON DELETE CASCADE,
+    step_key TEXT NOT NULL,
+    status TEXT NOT NULL,
+    output_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    error_code TEXT NULL,
+    error_message TEXT NULL,
+    started_at TIMESTAMPTZ NULL,
+    finished_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS run_steps_run_idx ON run_steps(run_id, created_at ASC);
+
   CREATE TABLE IF NOT EXISTS experiments (
     id TEXT PRIMARY KEY,
     venture_id TEXT NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
@@ -171,6 +190,23 @@ export const CONTROL_PLANE_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS credit_ledger_workspace_idx ON credit_ledger(workspace_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS credit_ledger_venture_idx ON credit_ledger(venture_id, created_at DESC);
 
+  CREATE TABLE IF NOT EXISTS usage_events (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    venture_id TEXT NULL REFERENCES ventures(id) ON DELETE SET NULL,
+    run_id TEXT NULL REFERENCES run_executions(id) ON DELETE SET NULL,
+    provider TEXT NOT NULL,
+    category TEXT NOT NULL,
+    unit_count DOUBLE PRECISION NOT NULL DEFAULT 0,
+    estimated_cost_cents INTEGER NOT NULL DEFAULT 0,
+    final_cost_cents INTEGER NOT NULL DEFAULT 0,
+    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS usage_events_workspace_idx ON usage_events(workspace_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS usage_events_run_idx ON usage_events(run_id, created_at DESC);
+
   CREATE TABLE IF NOT EXISTS approval_gates (
     id TEXT PRIMARY KEY,
     venture_id TEXT NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
@@ -185,6 +221,18 @@ export const CONTROL_PLANE_SCHEMA_SQL = `
   );
 
   CREATE INDEX IF NOT EXISTS approval_gates_venture_idx ON approval_gates(venture_id, status, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS billing_accounts (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL UNIQUE REFERENCES workspaces(id) ON DELETE CASCADE,
+    stripe_customer_id TEXT NULL,
+    stripe_subscription_id TEXT NULL,
+    plan_code TEXT NULL,
+    status TEXT NOT NULL DEFAULT 'inactive',
+    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
 `;
 
 export async function ensureControlPlaneSchema(sql: SqlClient) {

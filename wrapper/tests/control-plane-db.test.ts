@@ -13,12 +13,15 @@ describe("control plane db foundation", () => {
       "venture_specs",
       "connection_bindings",
       "run_executions",
+      "run_steps",
       "experiments",
       "experiment_variants",
       "metric_events",
       "revenue_events",
       "credit_ledger",
       "approval_gates",
+      "usage_events",
+      "billing_accounts",
     ]);
 
     for (const tableName of CONTROL_PLANE_FOUNDATION_TABLES) {
