@@ -2,6 +2,10 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
 import { hasStoredCompanyHqBriefing, normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { hasAdminBillingBypass } from "@/lib/admin-access";
+import {
+  getPrimaryControlPlaneSnapshotForUser,
+  syncLegacyUserState,
+} from "@/lib/control-plane-store";
 import { summarizeCredits } from "@/lib/credits";
 import { evaluateRequiredConnections } from "@/lib/revenue-track";
 import { hasConnectedLlmProvider, hasRunnableLlmBinding } from "@/lib/llm-connections";
@@ -113,8 +117,23 @@ export async function getCurrentUserState() {
   const user = await client.users.getUser(userId);
   const creditSummary = summarizeCredits(user.publicMetadata?.autopilotCredits);
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
-  const companyHqProfile = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
-  const revenue = normalizeAutopilotRevenueMetadata(user.privateMetadata?.autopilotRevenue);
+  const legacyCompanyHqProfile = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
+  const legacyRevenue = normalizeAutopilotRevenueMetadata(user.privateMetadata?.autopilotRevenue);
+  await syncLegacyUserState({
+    clerkUserId: userId,
+    autopilotState: {
+      companyId: autopilotState.companyId,
+      companyName: autopilotState.companyName,
+      bridgePrincipalId: autopilotState.bridgePrincipalId,
+    },
+    profile: legacyCompanyHqProfile,
+    revenue: legacyRevenue,
+  });
+  const controlPlaneSnapshot = await getPrimaryControlPlaneSnapshotForUser({
+    clerkUserId: userId,
+  });
+  const companyHqProfile = controlPlaneSnapshot?.profile ?? legacyCompanyHqProfile;
+  const revenue = controlPlaneSnapshot?.revenue ?? legacyRevenue;
   const llmReadiness = normalizeAutopilotLlmReadinessMetadata(
     user.privateMetadata?.autopilotLlmReadiness,
   );

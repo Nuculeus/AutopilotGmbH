@@ -17,7 +17,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "AutopilotGmbH",
   description:
-    "DSGVO-first SaaS wrapper for launching and operating zero-human companies on top of Paperclip.",
+    "Deutschsprachige, DSGVO-orientierte SaaS-Schicht fuer den Aufbau und Betrieb agentischer Ventures auf Paperclip.",
 };
 
 const rootClassName = `${spaceGrotesk.variable} ${ibmPlexMono.variable} h-full antialiased`;

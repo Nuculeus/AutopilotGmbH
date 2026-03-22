@@ -18,6 +18,13 @@ export type CompanyHqProfile = {
   valueModel: string;
   requiredConnections: RequiredConnectionId[];
   nextMilestone: LaunchRevenueMilestone | null;
+  ventureId: string | null;
+  proofTarget: string;
+  budgetCapCents: number | null;
+  acquisitionChannel: string;
+  paymentNode: string;
+  deliveryNode: string;
+  autonomyLevel: "guided" | "semi_auto" | "auto";
   updatedAt: string | null;
 };
 
@@ -31,6 +38,13 @@ export const EMPTY_COMPANY_HQ_PROFILE: CompanyHqProfile = {
   valueModel: "",
   requiredConnections: [],
   nextMilestone: null,
+  ventureId: null,
+  proofTarget: "",
+  budgetCapCents: null,
+  acquisitionChannel: "",
+  paymentNode: "",
+  deliveryNode: "",
+  autonomyLevel: "guided",
   updatedAt: null,
 };
 
@@ -69,6 +83,19 @@ export function normalizeCompanyHqProfile(value: unknown): CompanyHqProfile {
     valueModel: revenueContext.valueModel,
     requiredConnections: revenueContext.requiredConnections,
     nextMilestone: revenueContext.nextMilestone,
+    ventureId: typeof source.ventureId === "string" ? source.ventureId : null,
+    proofTarget: asString(source.proofTarget),
+    budgetCapCents:
+      typeof source.budgetCapCents === "number" && Number.isFinite(source.budgetCapCents)
+        ? source.budgetCapCents
+        : null,
+    acquisitionChannel: asString(source.acquisitionChannel),
+    paymentNode: asString(source.paymentNode),
+    deliveryNode: asString(source.deliveryNode),
+    autonomyLevel:
+      source.autonomyLevel === "semi_auto" || source.autonomyLevel === "auto"
+        ? source.autonomyLevel
+        : "guided",
     updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : null,
   };
 }

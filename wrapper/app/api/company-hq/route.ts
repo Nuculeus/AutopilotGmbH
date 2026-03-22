@@ -1,6 +1,8 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
 import { normalizeCompanyHqProfile } from "@/lib/company-hq";
+import { upsertCompanyHqForUser } from "@/lib/control-plane-store";
 import {
   normalizeLaunchRevenueMilestone,
   normalizeRequiredConnections,
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
+  const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
   const current = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
   const nextProfile = {
     ...normalizeCompanyHqProfile({
@@ -55,6 +58,16 @@ export async function POST(request: Request) {
     }),
     updatedAt: new Date().toISOString(),
   };
+
+  await upsertCompanyHqForUser({
+    clerkUserId: userId,
+    profile: nextProfile,
+    autopilotState: {
+      companyId: autopilotState.companyId,
+      companyName: autopilotState.companyName,
+      bridgePrincipalId: autopilotState.bridgePrincipalId,
+    },
+  });
 
   await client.users.updateUserMetadata(userId, {
     privateMetadata: {

@@ -20,7 +20,7 @@ export function AppSidebar({
         </p>
         {!compact ? (
           <p className="app-soft mt-3 text-sm">
-            Wrapper-first. DSGVO-first. DACH-ready.
+            Wrapper-first. DSGVO-orientiert. EU-fokussiert.
           </p>
         ) : null}
       </div>

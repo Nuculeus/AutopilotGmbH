@@ -17,9 +17,9 @@ const pillars = [
     icon: Building2,
   },
   {
-    title: "DSGVO zuerst, nicht nachträglich",
+    title: "DSGVO-orientiert von Anfang an",
     description:
-      "Deutsche Prompting-Regeln, Consent-Grenzen und Löschlogik sitzen von Anfang an in der Betriebslogik.",
+      "Deutsche Prompting-Regeln, Consent-Grenzen und Löschlogik sitzen von Anfang an in der Betriebslogik. Regionale Verarbeitung wird genutzt, wo der Stack es hergibt.",
     icon: ShieldCheck,
   },
   {

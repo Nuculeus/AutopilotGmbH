@@ -1,6 +1,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { normalizeCompanyHqProfile } from "@/lib/company-hq";
+import { recordRevenueEventForUser, upsertCompanyHqForUser } from "@/lib/control-plane-store";
 import { CREDIT_POLICY, normalizeCreditMetadata } from "@/lib/credits";
 import {
   advanceMilestoneFromEvent,
@@ -163,6 +164,44 @@ export async function POST(request: Request) {
             autopilotRevenue: nextRevenue,
           },
         });
+        await upsertCompanyHqForUser({
+          clerkUserId,
+          profile: {
+            ...currentProfile,
+            nextMilestone,
+            updatedAt: createdAt,
+          },
+        });
+        await recordRevenueEventForUser({
+          clerkUserId,
+          event: {
+            ventureId: currentProfile.ventureId,
+            kind: "checkout_live",
+            source: "stripe",
+            amountCents:
+              typeof session.amount_total === "number" ? session.amount_total : null,
+            currency: typeof session.currency === "string" ? session.currency : null,
+            externalRef: typeof session.id === "string" ? session.id : null,
+            createdAt,
+            metadata: { stripeEventId: event.id },
+          },
+        });
+        if (session.payment_status === "paid") {
+          await recordRevenueEventForUser({
+            clerkUserId,
+            event: {
+              ventureId: currentProfile.ventureId,
+              kind: "revenue_recorded",
+              source: "stripe",
+              amountCents:
+                typeof session.amount_total === "number" ? session.amount_total : null,
+              currency: typeof session.currency === "string" ? session.currency : null,
+              externalRef: typeof session.id === "string" ? session.id : null,
+              createdAt,
+              metadata: { stripeEventId: event.id },
+            },
+          });
+        }
       }
 
       console.log("stripe.checkout.session.completed", {
@@ -239,6 +278,28 @@ export async function POST(request: Request) {
             autopilotRevenue: nextRevenue,
           },
         });
+        await upsertCompanyHqForUser({
+          clerkUserId,
+          profile: {
+            ...currentProfile,
+            nextMilestone,
+            updatedAt: createdAt,
+          },
+        });
+        await recordRevenueEventForUser({
+          clerkUserId,
+          event: {
+            ventureId: currentProfile.ventureId,
+            kind: "revenue_recorded",
+            source: "stripe",
+            amountCents:
+              typeof invoice.amount_paid === "number" ? invoice.amount_paid : null,
+            currency: typeof invoice.currency === "string" ? invoice.currency : null,
+            externalRef: typeof invoice.id === "string" ? invoice.id : null,
+            createdAt,
+            metadata: { stripeEventId: event.id },
+          },
+        });
       }
     }
 
@@ -300,6 +361,27 @@ export async function POST(request: Request) {
               updatedAt: createdAt,
             },
             autopilotRevenue: nextRevenue,
+          },
+        });
+        await upsertCompanyHqForUser({
+          clerkUserId,
+          profile: {
+            ...currentProfile,
+            updatedAt: createdAt,
+          },
+        });
+        await recordRevenueEventForUser({
+          clerkUserId,
+          event: {
+            ventureId: currentProfile.ventureId,
+            kind: "payment_failed",
+            source: "stripe",
+            amountCents:
+              typeof invoice.amount_due === "number" ? invoice.amount_due : null,
+            currency: typeof invoice.currency === "string" ? invoice.currency : null,
+            externalRef: typeof invoice.id === "string" ? invoice.id : null,
+            createdAt,
+            metadata: { stripeEventId: event.id },
           },
         });
       }

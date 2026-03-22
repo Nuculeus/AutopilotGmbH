@@ -4,6 +4,33 @@ AutopilotGmbH ist ein `wrapper-first` DACH-Launch um `Paperclip`.
 
 Der Kunde sieht nur den Next.js-Wrapper unter `wrapper/`: Login, Launch Credits, Billing, Company-Start, Dashboard-Shell und die deutsche Betriebsoberfläche. `paperclip/` läuft dahinter als interner Execution-Core und wird über eine kontrollierte Bridge angesprochen.
 
+## Control Plane (DB-first)
+
+Der Wrapper nutzt jetzt eine Postgres-basierte Control-Plane als Source of Truth für den produktischen Venture-Zustand. Clerk bleibt für Auth, Entitlements und Spiegelung erhalten.
+
+Kernobjekte:
+
+- `workspaces`
+- `ventures`
+- `venture_specs`
+- `connection_bindings`
+- `run_executions`
+- `experiments`
+- `experiment_variants`
+- `metric_events`
+- `revenue_events`
+- `credit_ledger`
+- `approval_gates`
+
+Neue API-Flächen:
+
+- `POST /api/ventures`
+- `PATCH /api/ventures/:id/spec`
+- `POST /api/runs`
+- `POST /api/experiments`
+- `POST /api/experiments/:id/decide`
+- `POST /api/revenue/events` (erweitert um `source`, `attribution`, `runId`)
+
 ## Architektur
 
 - `wrapper/` ist die einzige öffentliche App.
@@ -81,6 +108,7 @@ Caddy zieht danach das Zertifikat automatisch, sobald die Domain auf den Server 
 - Die Launch-Bridge deckt aktuell bewusst nur eine kleine Allowlist produktiver Paperclip-Flächen ab.
 - Redis/BullMQ und tiefere Queue-Steuerung sind noch nicht Teil dieses Compose-Schnitts.
 - `docker compose config` konnte auf diesem Host zuletzt nicht geprüft werden, weil lokal kein `docker`-Binary installiert ist.
+- Compliance-Wording im Produkt ist bewusst wahrheitsgetreu: **DSGVO-orientiert, EU-fokussiert, regionale Verarbeitung wo möglich**.
 
 ## Smoke Tests
 
