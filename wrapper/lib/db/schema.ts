@@ -17,6 +17,7 @@ export const CONTROL_PLANE_FOUNDATION_TABLES = [
   "approval_gates",
   "usage_events",
   "billing_accounts",
+  "provisioning_runs",
 ] as const;
 
 export const CONTROL_PLANE_SCHEMA_SQL = `
@@ -233,6 +234,26 @@ export const CONTROL_PLANE_SCHEMA_SQL = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
+
+  CREATE TABLE IF NOT EXISTS provisioning_runs (
+    id TEXT PRIMARY KEY,
+    clerk_user_id TEXT NOT NULL,
+    request_key TEXT NOT NULL UNIQUE,
+    company_name TEXT NOT NULL,
+    idea TEXT NULL,
+    status TEXT NOT NULL,
+    paperclip_company_id TEXT NULL,
+    bridge_principal_id TEXT NULL,
+    last_error TEXT NULL,
+    retry_eligible BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ NULL,
+    finished_at TIMESTAMPTZ NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS provisioning_runs_clerk_user_idx
+  ON provisioning_runs(clerk_user_id, created_at DESC);
 `;
 
 export async function ensureControlPlaneSchema(sql: SqlClient) {

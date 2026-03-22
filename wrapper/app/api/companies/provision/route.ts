@@ -4,6 +4,13 @@ import { hasAdminBillingBypass } from "@/lib/admin-access";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
 import { hasStoredCompanyHqBriefing, normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { bootstrapCompany } from "@/lib/paperclip-admin";
+import {
+  claimProvisioningRunForUser,
+  getProvisioningRunForUser,
+  markProvisioningRunFailed,
+  markProvisioningRunStarted,
+  markProvisioningRunSucceeded,
+} from "@/lib/provisioning-store";
 
 function isBrowserNavigation(request: Request) {
   const accept = request.headers.get("accept") ?? "";
@@ -47,6 +54,46 @@ export async function POST(request: Request) {
     return browserNavigation ? redirectToLaunch(request) : NextResponse.json(payload);
   }
 
+  const durableProvisioning = await getProvisioningRunForUser({ clerkUserId: userId });
+  if (
+    durableProvisioning?.status === "succeeded" &&
+    durableProvisioning.paperclipCompanyId &&
+    durableProvisioning.bridgePrincipalId
+  ) {
+    const payload = {
+      paperclipCompanyId: durableProvisioning.paperclipCompanyId,
+      companyName: durableProvisioning.companyName,
+      bridgePrincipalId: durableProvisioning.bridgePrincipalId,
+      status: "existing",
+    };
+
+    await client.users.updateUserMetadata(userId, {
+      publicMetadata: {
+        ...user.publicMetadata,
+        autopilotProvisioning: {
+          companyId: durableProvisioning.paperclipCompanyId,
+          companyName: durableProvisioning.companyName,
+          provisioningStatus: "active",
+          workspaceStatus: "ready",
+          bridgePrincipalId: durableProvisioning.bridgePrincipalId,
+          lastError: null,
+        },
+      },
+    });
+
+    return browserNavigation ? redirectToLaunch(request) : NextResponse.json(payload);
+  }
+
+  if (durableProvisioning?.status === "pending" || durableProvisioning?.status === "running") {
+    const payload = {
+      provisioningRunId: durableProvisioning.id,
+      companyName: durableProvisioning.companyName,
+      status: "pending",
+    };
+
+    return browserNavigation ? redirectToLaunch(request) : NextResponse.json(payload, { status: 202 });
+  }
+
   if (autopilotState.creditSummary.availableCredits <= 0 && !hasBillingBypass) {
     return NextResponse.json(
       { error: "No credits or active plan available" },
@@ -69,6 +116,33 @@ export async function POST(request: Request) {
   const name = body?.name?.trim() || "Meine Autopilot GmbH";
   const idea = body?.idea?.trim() || null;
 
+  const claim = await claimProvisioningRunForUser({
+    clerkUserId: userId,
+    companyName: name,
+    idea,
+  });
+
+  if (claim?.action === "existing" && claim.record.paperclipCompanyId && claim.record.bridgePrincipalId) {
+    const payload = {
+      paperclipCompanyId: claim.record.paperclipCompanyId,
+      companyName: claim.record.companyName,
+      bridgePrincipalId: claim.record.bridgePrincipalId,
+      status: "existing",
+    };
+
+    return browserNavigation ? redirectToLaunch(request) : NextResponse.json(payload);
+  }
+
+  if (claim?.action === "pending") {
+    const payload = {
+      provisioningRunId: claim.record.id,
+      companyName: claim.record.companyName,
+      status: "pending",
+    };
+
+    return browserNavigation ? redirectToLaunch(request) : NextResponse.json(payload, { status: 202 });
+  }
+
   await client.users.updateUserMetadata(userId, {
     publicMetadata: {
       ...user.publicMetadata,
@@ -83,11 +157,22 @@ export async function POST(request: Request) {
   });
 
   try {
+    if (claim?.record?.id) {
+      await markProvisioningRunStarted({ runId: claim.record.id });
+    }
     const result = await bootstrapCompany({
       clerkUserId: userId,
       name,
       idea,
     });
+
+    if (claim?.record?.id) {
+      await markProvisioningRunSucceeded({
+        runId: claim.record.id,
+        paperclipCompanyId: result.paperclipCompanyId,
+        bridgePrincipalId: result.bridgePrincipalId,
+      });
+    }
 
     await client.users.updateUserMetadata(userId, {
       publicMetadata: {
@@ -106,6 +191,14 @@ export async function POST(request: Request) {
     return browserNavigation ? redirectToLaunch(request) : NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Paperclip bootstrap failed";
+
+    if (claim?.record?.id) {
+      await markProvisioningRunFailed({
+        runId: claim.record.id,
+        error: message,
+        retryEligible: true,
+      });
+    }
 
     await client.users.updateUserMetadata(userId, {
       publicMetadata: {

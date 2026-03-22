@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const authMock = vi.fn();
 const getUserMock = vi.fn();
 const updateUserMetadataMock = vi.fn();
+const getProvisioningRunForUserMock = vi.fn();
+const claimProvisioningRunForUserMock = vi.fn();
+const markProvisioningRunStartedMock = vi.fn();
+const markProvisioningRunSucceededMock = vi.fn();
+const markProvisioningRunFailedMock = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: authMock,
@@ -14,6 +19,14 @@ vi.mock("@clerk/nextjs/server", () => ({
   })),
 }));
 
+vi.mock("@/lib/provisioning-store", () => ({
+  getProvisioningRunForUser: getProvisioningRunForUserMock,
+  claimProvisioningRunForUser: claimProvisioningRunForUserMock,
+  markProvisioningRunStarted: markProvisioningRunStartedMock,
+  markProvisioningRunSucceeded: markProvisioningRunSucceededMock,
+  markProvisioningRunFailed: markProvisioningRunFailedMock,
+}));
+
 describe("POST /api/companies/provision", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -23,6 +36,25 @@ describe("POST /api/companies/provision", () => {
     process.env.INTERNAL_BRIDGE_SECRET = "bridge-secret";
     delete process.env.AUTOPILOT_ENABLE_ADMIN_BILLING_BYPASS;
     delete process.env.AUTOPILOT_ADMIN_USER_IDS;
+    getProvisioningRunForUserMock.mockResolvedValue(null);
+    claimProvisioningRunForUserMock.mockResolvedValue({
+      action: "start",
+      record: {
+        id: "prov_123",
+        clerkUserId: "user_123",
+        requestKey: "provision:user_123",
+        companyName: "Meine Autopilot GmbH",
+        idea: "KI-SEO-Agentur für DACH",
+        status: "pending",
+        paperclipCompanyId: null,
+        bridgePrincipalId: "clerk:user_123",
+        lastError: null,
+        retryEligible: true,
+      },
+    });
+    markProvisioningRunStartedMock.mockResolvedValue(undefined);
+    markProvisioningRunSucceededMock.mockResolvedValue(undefined);
+    markProvisioningRunFailedMock.mockResolvedValue(undefined);
   });
 
   it("creates one company and persists company metadata for the signed-in user", async () => {
@@ -134,6 +166,119 @@ describe("POST /api/companies/provision", () => {
     expect(response.status).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a durable succeeded provisioning record even when clerk metadata is stale", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotCredits: {
+          plan: "starter",
+        },
+      },
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir automatisieren Support fuer DACH-KMU.",
+          offer: "KI-Agenten als Service.",
+          audience: "Regionale Unternehmen.",
+          tone: "Klar, pragmatisch.",
+          priorities: "Ersten zahlenden Kunden gewinnen.",
+        },
+      },
+    });
+    getProvisioningRunForUserMock.mockResolvedValue({
+      id: "prov_123",
+      clerkUserId: "user_123",
+      requestKey: "provision:user_123",
+      companyName: "Bestehende Firma",
+      idea: "Bereits provisioniert",
+      status: "succeeded",
+      paperclipCompanyId: "cmp_123",
+      bridgePrincipalId: "clerk:user_123",
+      lastError: null,
+      retryEligible: false,
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { POST } = await import("@/app/api/companies/provision/route");
+    const response = await POST(
+      new Request("http://localhost/api/companies/provision", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: "Ignorieren" }),
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual(
+      expect.objectContaining({
+        paperclipCompanyId: "cmp_123",
+        companyName: "Bestehende Firma",
+        status: "existing",
+      }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a retry-safe pending state instead of bootstrapping twice", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotCredits: {
+          plan: "starter",
+        },
+      },
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir automatisieren Support fuer DACH-KMU.",
+          offer: "KI-Agenten als Service.",
+          audience: "Regionale Unternehmen.",
+          tone: "Klar, pragmatisch.",
+          priorities: "Ersten zahlenden Kunden gewinnen.",
+        },
+      },
+    });
+    claimProvisioningRunForUserMock.mockResolvedValue({
+      action: "pending",
+      record: {
+        id: "prov_123",
+        clerkUserId: "user_123",
+        requestKey: "provision:user_123",
+        companyName: "Meine Autopilot GmbH",
+        idea: "KI-SEO-Agentur für DACH",
+        status: "running",
+        paperclipCompanyId: null,
+        bridgePrincipalId: "clerk:user_123",
+        lastError: null,
+        retryEligible: true,
+      },
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { POST } = await import("@/app/api/companies/provision/route");
+    const response = await POST(
+      new Request("http://localhost/api/companies/provision", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: "Meine Autopilot GmbH" }),
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(202);
+    expect(String(payload.status)).toBe("pending");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("redirects browser form submissions back into the launch flow after provisioning", async () => {

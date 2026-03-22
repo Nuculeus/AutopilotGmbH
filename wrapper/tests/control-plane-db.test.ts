@@ -22,6 +22,7 @@ describe("control plane db foundation", () => {
       "approval_gates",
       "usage_events",
       "billing_accounts",
+      "provisioning_runs",
     ]);
 
     for (const tableName of CONTROL_PLANE_FOUNDATION_TABLES) {
