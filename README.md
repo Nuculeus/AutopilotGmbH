@@ -2,13 +2,40 @@
 
 AutopilotGmbH ist ein `wrapper-first` DACH-Launch um `Paperclip`.
 
-Der Kunde sieht nur den Next.js-Wrapper unter `wrapper/`: Login, Launch Credits, Billing, Company-Start, Dashboard-Shell und die deutsche Betriebsoberfläche. `paperclip/` läuft dahinter als interner Execution-Core und wird über eine kontrollierte Bridge angesprochen.
+Der Kunde sieht nur den Next.js-Wrapper unter `wrapper/`: Login, Onboarding, Start-Flow, Dashboard-Shell und die deutsche Betriebsoberfläche. `paperclip/` läuft dahinter als interner Execution-Core und wird über eine kontrollierte Bridge angesprochen.
 
-## Control Plane (DB-first)
+## Aktueller Fokus: Stabilization / Foundation
 
-Der Wrapper nutzt jetzt eine Postgres-basierte Control-Plane als Source of Truth für den produktischen Venture-Zustand. Clerk bleibt für Auth, Entitlements und Spiegelung erhalten.
+Das Repository befindet sich derzeit bewusst in einer **Stabilization- und Foundation-Phase**, nicht in einer Feature-Expansionsphase.
 
-Kernobjekte:
+Die verbindliche Richtung ist:
+
+- **Service Engine first**
+- **guided autonomy** statt vollautonomer Außenversprechen
+- **Postgres als Ziel-Source-of-Truth**
+- **Clerk nur für Auth und leichte Entitlement-Spiegelung**
+- **keine Scope-Ausweitung**, bevor Provisioning, Billing, Run-Orchestrierung und Observability belastbar sind
+
+Kurz gesagt: Wir machen den bestehenden Wrapper zuerst wahrheitsgetreu, zuverlässig und wiederholbar, bevor wir die Vision verbreitern.
+
+## Aktueller Stand
+
+Heute existiert bereits ein brauchbarer Wrapper-First-Prototyp mit:
+
+- Landingpage und Login über Clerk
+- geführtem Onboarding und Revenue-Track-Hinweisen
+- Start-/Launch-Flächen
+- deutscher App-Shell unter `/app/*`
+- kontrollierter Paperclip-Bridge
+- Stripe-, Credits- und Provisioning-Schnitten
+
+Wichtig: Mehrere dieser Flächen sind **noch Prototypen oder Übergangslogik**, nicht finale produktionsreife Systeme.
+
+## Zielarchitektur (noch nicht vollständig umgesetzt)
+
+Der Zielzustand ist eine DB-gestützte Control Plane, bei der Postgres die Source of Truth für produktischen Venture- und Run-Zustand wird. Clerk bleibt dann für Auth, Entitlements und Spiegelung erhalten.
+
+Geplante Kernobjekte:
 
 - `workspaces`
 - `ventures`
@@ -22,7 +49,7 @@ Kernobjekte:
 - `credit_ledger`
 - `approval_gates`
 
-Neue API-Flächen:
+Geplante bzw. schrittweise einzuführende API-Flächen:
 
 - `POST /api/ventures`
 - `PATCH /api/ventures/:id/spec`
@@ -40,6 +67,14 @@ Neue API-Flächen:
 - Der stabile Nutzer-Principal in Paperclip ist `clerk:<userId>`.
 - Externe Heavy-Use-Tools sollen im Launch bevorzugt als `bring your own keys` angebunden werden.
 
+## Produktprinzipien
+
+- **Primary wedge:** Service Engine first
+- **Außenversprechen:** geführte Ergebnis-Pfade statt Tool-Chaos
+- **Autonomie:** Guided, Semi-Auto, Autopilot nur innerhalb klarer Guardrails
+- **Preismodell nach außen:** benannte Sprints / Outcomes
+- **Accounting intern:** Credits und Provider-Kosten als interne Steuerung
+
 ## Repository
 
 - `paperclip/` ist das Git-Submodule für den Execution-Core.
@@ -55,9 +90,11 @@ Neue API-Flächen:
 
 1. Nutzer landet im Wrapper.
 2. Clerk Sign-in oder Sign-up.
-3. `/launch` entscheidet zentral: Sign-in, Credits/Billing, Provisioning oder Workspace.
-4. `/start` bootstrapped die Company über die interne Paperclip-Bridge.
+3. `/launch` entscheidet zentral über Einstieg und nächsten sinnvollen Schritt.
+4. `/start` und die zugehörigen Guided-Flächen führen in Onboarding, Setup und Provisioning.
 5. `/app/*` zeigt die native Launch-Shell mit kontrollierten Paperclip-Datenflächen.
+
+Hinweis: Dieser Flow wird aktuell aktiv von einem credits-first / provisioning-first Prototypen in einen outcome-first / run-first Foundation-Flow überführt.
 
 ## Production-Stack
 
@@ -66,7 +103,7 @@ Der produktionsnahe Compose-Schnitt ist:
 - `caddy` für TLS und die öffentliche Domain
 - `wrapper` als einzige öffentlich erreichbare App
 - `paperclip` nur intern im Docker-Netz
-- `postgres` als lokale Launch-DB
+- `postgres` als vorbereitete lokale Launch-DB
 
 Wichtig:
 
@@ -107,6 +144,7 @@ Caddy zieht danach das Zertifikat automatisch, sobald die Domain auf den Server 
 - `custom-skills/autoresearch` ist aktuell auf CUDA/Linux ausgelegt und läuft auf macOS ARM nicht vollständig.
 - Die Launch-Bridge deckt aktuell bewusst nur eine kleine Allowlist produktiver Paperclip-Flächen ab.
 - Redis/BullMQ und tiefere Queue-Steuerung sind noch nicht Teil dieses Compose-Schnitts.
+- Der Wrapper nutzt aktuell noch nicht durchgehend eine eigene DB-gestützte Domain- und Run-Logik; diese Foundation wird erst schrittweise umgesetzt.
 - `docker compose config` konnte auf diesem Host zuletzt nicht geprüft werden, weil lokal kein `docker`-Binary installiert ist.
 - Compliance-Wording im Produkt ist bewusst wahrheitsgetreu: **DSGVO-orientiert, EU-fokussiert, regionale Verarbeitung wo möglich**.
 
