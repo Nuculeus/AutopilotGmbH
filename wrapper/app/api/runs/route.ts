@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { ControlPlaneError, queueRunForUser } from "@/lib/control-plane-store";
+import { queueRunForUser, RunStoreError } from "@/lib/run-store";
 
 type RunPayload = {
   ventureId: string;
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    if (error instanceof ControlPlaneError) {
+    if (error instanceof RunStoreError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 

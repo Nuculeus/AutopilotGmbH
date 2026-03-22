@@ -7,7 +7,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: authMock,
 }));
 
-vi.mock("@/lib/control-plane-store", () => ({
+vi.mock("@/lib/run-store", () => ({
   queueRunForUser: queueRunForUserMock,
 }));
 
