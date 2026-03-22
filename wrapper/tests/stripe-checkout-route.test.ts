@@ -23,7 +23,9 @@ vi.mock("@/lib/stripe", () => ({
       },
     },
   })),
-  getAppUrl: vi.fn((origin?: string) => origin ?? "http://localhost"),
+  getAppUrl: vi.fn(
+    (origin?: string) => process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? origin ?? "http://localhost",
+  ),
   getStarterPriceId: vi.fn(() => "price_starter"),
 }));
 
@@ -115,5 +117,33 @@ describe("POST /api/stripe/checkout", () => {
         }),
       }),
     );
+  });
+
+  it("uses configured app url for admin bypass when request origin is internal", async () => {
+    process.env.APP_BASE_URL = "https://autopilotgmbh.de";
+    process.env.AUTOPILOT_ENABLE_ADMIN_BILLING_BYPASS = "true";
+    process.env.AUTOPILOT_ADMIN_USER_IDS = "user_123";
+
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotCredits: {
+          plan: "free",
+        },
+      },
+      privateMetadata: {},
+    });
+
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+    const response = await POST(
+      new Request("http://0.0.0.0:3000/api/stripe/checkout", {
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("https://autopilotgmbh.de/launch?checkout=admin_bypass");
+    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
   });
 });

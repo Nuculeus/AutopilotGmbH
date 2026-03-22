@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.redirect(
-      new URL("/launch?checkout=admin_bypass", request.url),
+      new URL("/launch?checkout=admin_bypass", baseUrl),
       { status: 303 },
     );
   }
