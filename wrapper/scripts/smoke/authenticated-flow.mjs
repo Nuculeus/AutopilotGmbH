@@ -2,13 +2,20 @@
 
 const appUrl = (process.env.SMOKE_APP_URL || process.env.APP_BASE_URL || "https://autopilotgmbh.de").replace(/\/$/, "");
 const sessionCookie = process.env.SMOKE_CLERK_SESSION_COOKIE || process.env.E2E_SESSION_COOKIE;
+const smokeClerkUserId = process.env.SMOKE_CLERK_USER_ID;
+const clerkSecretKey = process.env.CLERK_SECRET_KEY;
 
-if (!sessionCookie) {
-  console.error("Missing SMOKE_CLERK_SESSION_COOKIE (or E2E_SESSION_COOKIE).");
+const authMode = sessionCookie ? "cookie" : smokeClerkUserId && clerkSecretKey ? "bearer" : null;
+
+if (!authMode) {
+  console.error(
+    "Missing auth for smoke: provide SMOKE_CLERK_SESSION_COOKIE (or E2E_SESSION_COOKIE), "
+      + "or set SMOKE_CLERK_USER_ID + CLERK_SECRET_KEY for bearer mode.",
+  );
   process.exit(1);
 }
 
-const cookieHeader = `__session=${sessionCookie}`;
+let bearerToken = null;
 const results = [];
 
 function logStep(name, ok, detail) {
@@ -20,7 +27,11 @@ function logStep(name, ok, detail) {
 async function request(path, init = {}) {
   const url = `${appUrl}${path}`;
   const headers = new Headers(init.headers || {});
-  headers.set("cookie", cookieHeader);
+  if (authMode === "cookie") {
+    headers.set("cookie", `__session=${sessionCookie}`);
+  } else if (bearerToken) {
+    headers.set("authorization", `Bearer ${bearerToken}`);
+  }
   if (!headers.has("content-type") && init.body) {
     headers.set("content-type", "application/json");
   }
@@ -32,31 +43,90 @@ async function request(path, init = {}) {
   });
 }
 
+async function createSessionBearerToken() {
+  if (!smokeClerkUserId || !clerkSecretKey) {
+    throw new Error("Missing SMOKE_CLERK_USER_ID or CLERK_SECRET_KEY");
+  }
+
+  const sessionResponse = await fetch("https://api.clerk.com/v1/sessions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${clerkSecretKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      user_id: smokeClerkUserId,
+    }),
+  });
+
+  if (!sessionResponse.ok) {
+    const body = await sessionResponse.text();
+    throw new Error(`Failed to create Clerk session: ${sessionResponse.status} ${body}`);
+  }
+
+  const session = await sessionResponse.json();
+  const tokenResponse = await fetch(`https://api.clerk.com/v1/sessions/${session.id}/tokens`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${clerkSecretKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!tokenResponse.ok) {
+    const body = await tokenResponse.text();
+    throw new Error(`Failed to create Clerk session token: ${tokenResponse.status} ${body}`);
+  }
+
+  const tokenPayload = await tokenResponse.json();
+  if (!tokenPayload.jwt || typeof tokenPayload.jwt !== "string") {
+    throw new Error("Missing Clerk session JWT in token response.");
+  }
+
+  return tokenPayload.jwt;
+}
+
 async function run() {
   try {
-    const launchRes = await request("/launch");
-    const launchLocation = launchRes.headers.get("location") || "";
-    const launchUnauthorizedRedirect =
-      launchRes.status >= 300 &&
-      launchRes.status < 400 &&
-      launchLocation.includes("/sign-in");
-    logStep(
-      "Authenticated launch access",
-      !launchUnauthorizedRedirect,
-      `status=${launchRes.status}${launchLocation ? ` location=${launchLocation}` : ""}`,
-    );
+    if (authMode === "bearer") {
+      bearerToken = await createSessionBearerToken();
+      logStep("Bearer auth bootstrap", true, "Clerk session token issued");
+    }
 
-    const connectionsRes = await request("/app/connections");
-    const connectionsLocation = connectionsRes.headers.get("location") || "";
-    const connectionsUnauthorizedRedirect =
-      connectionsRes.status >= 300 &&
-      connectionsRes.status < 400 &&
-      connectionsLocation.includes("/sign-in");
-    logStep(
-      "Connections page access",
-      !connectionsUnauthorizedRedirect,
-      `status=${connectionsRes.status}${connectionsLocation ? ` location=${connectionsLocation}` : ""}`,
-    );
+    if (authMode === "cookie") {
+      const launchRes = await request("/launch");
+      const launchLocation = launchRes.headers.get("location") || "";
+      const launchUnauthorizedRedirect =
+        launchRes.status >= 300 &&
+        launchRes.status < 400 &&
+        launchLocation.includes("/sign-in");
+      logStep(
+        "Authenticated launch access",
+        !launchUnauthorizedRedirect,
+        `status=${launchRes.status}${launchLocation ? ` location=${launchLocation}` : ""}`,
+      );
+
+      const connectionsRes = await request("/app/connections");
+      const connectionsLocation = connectionsRes.headers.get("location") || "";
+      const connectionsUnauthorizedRedirect =
+        connectionsRes.status >= 300 &&
+        connectionsRes.status < 400 &&
+        connectionsLocation.includes("/sign-in");
+      logStep(
+        "Connections page access",
+        !connectionsUnauthorizedRedirect,
+        `status=${connectionsRes.status}${connectionsLocation ? ` location=${connectionsLocation}` : ""}`,
+      );
+    } else {
+      const profileRes = await request("/api/company-hq");
+      const profileBody = await profileRes.text();
+      logStep(
+        "Company HQ API auth access",
+        profileRes.status !== 401,
+        `status=${profileRes.status} body=${profileBody.slice(0, 180)}`,
+      );
+    }
 
     const readinessRes = await request("/api/connections/llm-readiness", {
       method: "POST",

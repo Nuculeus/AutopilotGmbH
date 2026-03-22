@@ -42,6 +42,14 @@ function getPaperclipInternalUrl() {
   );
 }
 
+function getPaperclipInternalOrigin() {
+  try {
+    return new URL(getPaperclipInternalUrl()).origin;
+  } catch {
+    return "http://paperclip:3100";
+  }
+}
+
 function getInternalSecret() {
   const internalSecret = process.env.INTERNAL_BRIDGE_SECRET?.trim();
 
@@ -55,6 +63,8 @@ function getInternalSecret() {
 function getBridgeHeaders(bridgePrincipalId?: string | null) {
   const headers = new Headers({
     "Content-Type": "application/json",
+    Accept: "application/json",
+    Origin: getPaperclipInternalOrigin(),
     "X-Internal-Secret": getInternalSecret(),
   });
 
