@@ -147,6 +147,17 @@ function summarizeProbeFailure(result: PaperclipAdapterEnvironmentTestResult) {
   return "Die Adapter-Umgebung konnte nicht erfolgreich getestet werden.";
 }
 
+function summarizeProbeException(error: unknown) {
+  if (error instanceof Error) {
+    const normalized = error.message.toLowerCase();
+    if (normalized.includes("secret not found")) {
+      return "Eine hinterlegte Verbindung wurde nicht gefunden. Bitte in Connections den betroffenen Key neu speichern und den Readiness-Check erneut starten.";
+    }
+  }
+
+  return "Der LLM-Check ist unerwartet fehlgeschlagen. Bitte den Check erneut starten.";
+}
+
 export async function assessLlmReadiness(
   input: AssessInput,
   probeAdapter: ProbeFn = testAdapterEnvironment,
@@ -188,12 +199,22 @@ export async function assessLlmReadiness(
     };
   }
 
-  const probe = await probeAdapter({
-    companyId: input.companyId,
-    bridgePrincipalId: input.bridgePrincipalId,
-    adapterType: candidate.adapterType,
-    adapterConfig: candidate.adapterConfig,
-  });
+  let probe: PaperclipAdapterEnvironmentTestResult;
+  try {
+    probe = await probeAdapter({
+      companyId: input.companyId,
+      bridgePrincipalId: input.bridgePrincipalId,
+      adapterType: candidate.adapterType,
+      adapterConfig: candidate.adapterConfig,
+    });
+  } catch (error) {
+    return {
+      status: "blocked",
+      summary: summarizeProbeException(error),
+      probedAdapterType: candidate.adapterType,
+      checkedAt,
+    };
+  }
 
   if (probe.status === "fail") {
     return {

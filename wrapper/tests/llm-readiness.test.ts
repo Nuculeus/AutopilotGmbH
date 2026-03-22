@@ -108,4 +108,38 @@ describe("assessLlmReadiness", () => {
     expect(result.status).toBe("blocked");
     expect(result.summary).toContain("Configure OPENAI_API_KEY");
   });
+
+  it("returns blocked when probe throws due to stale secret reference", async () => {
+    const probe = vi.fn().mockRejectedValue(new Error("Secret not found"));
+
+    const result = await assessLlmReadiness(
+      {
+        companyId: "cmp_123",
+        bridgePrincipalId: "clerk:user_123",
+        agents: [
+          {
+            id: "agent_ceo",
+            name: "CEO",
+            role: "ceo",
+            adapterType: "codex_local",
+            adapterConfig: {
+              model: "gpt-5.4",
+              env: {
+                OPENAI_API_KEY: {
+                  type: "secret_ref",
+                  secretId: "sec_openai",
+                  version: "latest",
+                },
+              },
+            },
+          },
+        ],
+      },
+      probe,
+    );
+
+    expect(result.status).toBe("blocked");
+    expect(result.summary).toContain("hinterlegte Verbindung wurde nicht gefunden");
+    expect(result.probedAdapterType).toBe("codex_local");
+  });
 });
