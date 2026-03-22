@@ -56,6 +56,10 @@ function isSecretCreate(path: string[], method: string) {
   return path.length === 1 && path[0] === "secrets" && method.toUpperCase() === "POST";
 }
 
+function isSecretDelete(path: string[], method: string) {
+  return path.length === 2 && path[0] === "secrets" && method.toUpperCase() === "DELETE";
+}
+
 function isSavedSecretPayload(payload: unknown): payload is { id: string; name: string } {
   return Boolean(
     payload
@@ -434,6 +438,27 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
       }
 
       return NextResponse.json(payload, { status: responseStatus, headers });
+    }
+
+    if (isSecretDelete(path, request.method) && (contentType ?? "").includes("application/json")) {
+      const payload = await upstream.json().catch(() => null);
+
+      if (upstream.ok) {
+        await client.users.updateUserMetadata(userId, {
+          privateMetadata: {
+            ...privateMetadata,
+            autopilotLlmReadiness: {
+              status: "blocked",
+              summary:
+                "LLM-Verbindung wurde entfernt. Bitte in Connections einen aktiven Key speichern und den Readiness-Check erneut ausführen.",
+              probedAdapterType: null,
+              checkedAt: null,
+            },
+          },
+        });
+      }
+
+      return NextResponse.json(payload, { status: upstream.status, headers });
     }
 
     if (isWorkspaceAgentCreate(path, request.method) && (contentType ?? "").includes("application/json")) {

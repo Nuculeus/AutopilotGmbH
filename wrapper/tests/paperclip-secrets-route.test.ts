@@ -331,4 +331,51 @@ describe("POST /api/paperclip/secrets", () => {
       }),
     );
   });
+
+  it("resets llm readiness when a secret is deleted", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      privateMetadata: {},
+      publicMetadata: {
+        autopilotProvisioning: {
+          companyId: "cmp_123",
+          companyName: "Meine Autopilot GmbH",
+          provisioningStatus: "active",
+          workspaceStatus: "ready",
+          bridgePrincipalId: "clerk:user_123",
+        },
+      },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { DELETE } = await import("@/app/api/paperclip/[...path]/route");
+    const response = await DELETE(
+      new Request("http://localhost/api/paperclip/secrets/sec_openai", {
+        method: "DELETE",
+      }),
+      { params: Promise.resolve({ path: ["secrets", "sec_openai"] }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        privateMetadata: expect.objectContaining({
+          autopilotLlmReadiness: expect.objectContaining({
+            status: "blocked",
+            probedAdapterType: null,
+            checkedAt: null,
+          }),
+        }),
+      }),
+    );
+  });
 });
