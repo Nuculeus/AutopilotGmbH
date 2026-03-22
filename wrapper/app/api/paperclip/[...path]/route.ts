@@ -7,7 +7,9 @@ import {
 } from "@/lib/llm-readiness";
 import {
   buildAgentConfigWithLlmSecret,
+  getCanonicalLlmSecretName,
   planAgentLlmBindings,
+  resolveLlmProviderFromSecretName,
 } from "@/lib/llm-connections";
 import { canTargetCompany, listCompanyAgents, updateAgentAdapterConfig } from "@/lib/paperclip-admin";
 import {
@@ -63,6 +65,39 @@ function isSavedSecretPayload(payload: unknown): payload is { id: string; name: 
     && "name" in payload
     && typeof payload.name === "string",
   );
+}
+
+function normalizeSecretCreatePayload(rawPayload: unknown) {
+  if (!rawPayload || typeof rawPayload !== "object" || Array.isArray(rawPayload)) {
+    throw new BridgeError(400, "Invalid secret payload.");
+  }
+
+  const payload = rawPayload as Record<string, unknown>;
+  const originalName = typeof payload.name === "string" ? payload.name.trim() : "";
+  const value = typeof payload.value === "string" ? payload.value.trim() : "";
+  const provider = typeof payload.provider === "string" ? payload.provider.trim() : "";
+  const description =
+    typeof payload.description === "string" ? payload.description.trim() : null;
+  const externalRef =
+    typeof payload.externalRef === "string" ? payload.externalRef.trim() : null;
+
+  if (!originalName || !value || !provider) {
+    throw new BridgeError(400, "Name, value and provider are required for secret creation.");
+  }
+
+  const llmProvider = resolveLlmProviderFromSecretName(originalName);
+  const name = llmProvider
+    ? getCanonicalLlmSecretName(llmProvider)
+    : originalName;
+
+  return {
+    ...payload,
+    name,
+    value,
+    provider,
+    description: description || null,
+    externalRef: externalRef || null,
+  };
 }
 
 type CreatedAgentPayload = {
@@ -211,8 +246,21 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
   }
 
   try {
+    let bridgeRequest = request;
+    if (isSecretCreate(path, request.method)) {
+      const rawPayload = await request.json().catch(() => null);
+      const normalizedPayload = normalizeSecretCreatePayload(rawPayload);
+      const headers = new Headers(request.headers);
+      headers.set("content-type", "application/json");
+      bridgeRequest = new Request(request.url, {
+        method: request.method,
+        headers,
+        body: JSON.stringify(normalizedPayload),
+      });
+    }
+
     const upstream = await bridgePaperclipRequest({
-      request,
+      request: bridgeRequest,
       pathSegments: path,
       userId,
       autopilotState,
