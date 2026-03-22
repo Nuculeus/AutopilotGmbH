@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useEffect, useMemo, useState } from "react";
+import { validateSecretForLaunch } from "@/lib/connection-key-validation";
 import type { PaperclipCompanySecret, PaperclipSecretProvider } from "@/lib/paperclip-bridge";
 import { priorityConnectionTemplates } from "@/lib/guided-launch";
 
@@ -122,15 +123,27 @@ export function ConnectionsManager({
 
     startTransition(async () => {
       try {
+        const normalizedName = name.trim();
+        const normalizedValue = value.trim();
+        const normalizedDescription = description.trim();
+        const validation = validateSecretForLaunch({
+          name: normalizedName,
+          value: normalizedValue,
+        });
+
+        if (!validation.ok) {
+          throw new Error(validation.message ?? "Secret konnte nicht validiert werden.");
+        }
+
         const response = await fetch("/api/paperclip/secrets", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            name,
-            value,
-            description: description || null,
+            name: normalizedName,
+            value: normalizedValue,
+            description: normalizedDescription || null,
             provider,
           }),
         });
@@ -146,8 +159,8 @@ export function ConnectionsManager({
         setName("");
         setValue("");
         setDescription("");
-        setMessage("Verbindung gespeichert. Der Key liegt jetzt company-scoped in Paperclip.");
-        await runReadinessCheck({ silent: true });
+        setMessage("Verbindung gespeichert. Readiness wird jetzt geprüft...");
+        await runReadinessCheck();
       } catch (error) {
         setMessage(
           error instanceof Error ? error.message : "Verbindung konnte nicht gespeichert werden.",

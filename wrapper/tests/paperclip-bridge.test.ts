@@ -199,6 +199,44 @@ describe("paperclip bridge", () => {
     vi.useRealTimers();
   });
 
+  it("allows realistic workspace write bursts before rate limiting", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+
+    const autopilotState = {
+      companyId: "cmp_123",
+      bridgePrincipalId: "clerk:user_123",
+      provisioningStatus: "active" as const,
+      workspaceStatus: "ready" as const,
+      canOpenWorkspace: true,
+    };
+
+    for (let index = 0; index < 80; index += 1) {
+      await expect(
+        bridgePaperclipRequest({
+          request: new Request("http://localhost/api/paperclip/workspace-api/issues", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ title: `issue-${index}` }),
+          }),
+          pathSegments: ["workspace-api", "issues"],
+          userId: "user_123",
+          autopilotState,
+        }),
+      ).resolves.toBeInstanceOf(Response);
+    }
+
+    vi.useRealTimers();
+  });
+
   it("allows the workspace HTML entry route for a provisioned company", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response("<html><body>Paperclip</body></html>", {
