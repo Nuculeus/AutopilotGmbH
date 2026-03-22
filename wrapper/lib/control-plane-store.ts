@@ -104,7 +104,7 @@ type CreateExperimentInput = {
 
 type ExperimentDecision = "keep" | "discard";
 
-type ControlPlaneSnapshot = {
+export type ControlPlaneSnapshot = {
   workspaceId: string;
   ventureId: string;
   profile: CompanyHqProfile;

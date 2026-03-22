@@ -6,6 +6,7 @@ import {
   getPrimaryControlPlaneSnapshotForUser,
   syncLegacyUserState,
 } from "@/lib/control-plane-store";
+import { resolveControlPlaneStateSources } from "@/lib/control-plane-resolution";
 import { summarizeCredits } from "@/lib/credits";
 import { evaluateRequiredConnections } from "@/lib/revenue-track";
 import { hasConnectedLlmProvider, hasRunnableLlmBinding } from "@/lib/llm-connections";
@@ -132,8 +133,13 @@ export async function getCurrentUserState() {
   const controlPlaneSnapshot = await getPrimaryControlPlaneSnapshotForUser({
     clerkUserId: userId,
   });
-  const companyHqProfile = controlPlaneSnapshot?.profile ?? legacyCompanyHqProfile;
-  const revenue = controlPlaneSnapshot?.revenue ?? legacyRevenue;
+  const resolvedState = resolveControlPlaneStateSources({
+    controlPlaneSnapshot,
+    legacyCompanyHqProfile,
+    legacyRevenue,
+  });
+  const companyHqProfile = resolvedState.companyHqProfile;
+  const revenue = resolvedState.revenue;
   const llmReadiness = normalizeAutopilotLlmReadinessMetadata(
     user.privateMetadata?.autopilotLlmReadiness,
   );
