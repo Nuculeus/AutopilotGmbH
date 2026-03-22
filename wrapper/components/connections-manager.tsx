@@ -10,6 +10,13 @@ type ConnectionsManagerProps = {
   initialPresetId?: string | null;
 };
 
+type LlmReadinessPayload = {
+  status: "ready" | "warning" | "blocked";
+  summary: string;
+  probedAdapterType: string | null;
+  checkedAt?: string;
+};
+
 export function ConnectionsManager({
   providers,
   initialSecrets,
@@ -22,6 +29,8 @@ export function ConnectionsManager({
   const [provider, setProvider] = useState(providers[0]?.id ?? "local_encrypted");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
+  const [readiness, setReadiness] = useState<LlmReadinessPayload | null>(null);
 
   const providerOptions = useMemo(
     () => providers.map((entry) => ({ value: entry.id, label: entry.label })),
@@ -40,6 +49,71 @@ export function ConnectionsManager({
       setProvider(providerMatch.id);
     }
   }, [initialPresetId, providers]);
+
+  async function runReadinessCheck(options?: { silent?: boolean }) {
+    setIsCheckingReadiness(true);
+
+    try {
+      const response = await fetch("/api/connections/llm-readiness", {
+        method: "POST",
+      });
+      const data = (await response.json().catch(() => null)) as
+        | LlmReadinessPayload
+        | { error?: string; summary?: string }
+        | null;
+
+      if (!response.ok) {
+        const summaryFromPayload =
+          typeof data === "object" &&
+          data !== null &&
+          "summary" in data &&
+          typeof data.summary === "string"
+            ? data.summary
+            : null;
+        const errorFromPayload =
+          typeof data === "object" &&
+          data !== null &&
+          "error" in data &&
+          typeof data.error === "string"
+            ? data.error
+            : null;
+        const fallbackSummary =
+          summaryFromPayload ||
+          errorFromPayload ||
+          "LLM-Check konnte nicht abgeschlossen werden.";
+
+        setReadiness({
+          status: "blocked",
+          summary: fallbackSummary,
+          probedAdapterType: null,
+        });
+
+        if (!options?.silent) {
+          setMessage(fallbackSummary);
+        }
+
+        return;
+      }
+
+      const payload = data as LlmReadinessPayload;
+      setReadiness(payload);
+      if (!options?.silent) {
+        setMessage(payload.summary);
+      }
+    } catch {
+      const fallback = "LLM-Check konnte nicht abgeschlossen werden.";
+      setReadiness({
+        status: "blocked",
+        summary: fallback,
+        probedAdapterType: null,
+      });
+      if (!options?.silent) {
+        setMessage(fallback);
+      }
+    } finally {
+      setIsCheckingReadiness(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,6 +147,7 @@ export function ConnectionsManager({
         setValue("");
         setDescription("");
         setMessage("Verbindung gespeichert. Der Key liegt jetzt company-scoped in Paperclip.");
+        await runReadinessCheck({ silent: true });
       } catch (error) {
         setMessage(
           error instanceof Error ? error.message : "Verbindung konnte nicht gespeichert werden.",
@@ -102,6 +177,32 @@ export function ConnectionsManager({
             Die gespeicherten Verbindungen sind company-scoped und werden über
             den kontrollierten Wrapper-Bridge-Pfad angelegt.
           </p>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              className="workspace-launch-link"
+              disabled={isCheckingReadiness}
+              onClick={() => {
+                void runReadinessCheck();
+              }}
+              type="button"
+            >
+              {isCheckingReadiness ? "LLM-Check läuft..." : "LLM-Readiness prüfen"}
+            </button>
+            {readiness ? (
+              <span className="app-muted text-xs">
+                {readiness.status === "ready"
+                  ? "bereit"
+                  : readiness.status === "warning"
+                    ? "mit Hinweis"
+                    : "blockiert"}
+              </span>
+            ) : null}
+          </div>
+          {readiness ? (
+            <p className="app-soft mt-3 text-sm">
+              {readiness.summary}
+            </p>
+          ) : null}
         </article>
       </div>
 

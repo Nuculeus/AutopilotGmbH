@@ -4,11 +4,18 @@ import {
   hasStoredCompanyHqBriefing,
   type CompanyHqProfile,
 } from "@/lib/company-hq";
+import {
+  getRequiredConnectionLabel,
+  isLaunchMilestoneAtLeast,
+  type RequiredConnectionId,
+} from "@/lib/revenue-track";
 
 type ShellInput = {
   currentPath: string;
   companyHqProfile: CompanyHqProfile;
-  hasLlmConnection: boolean;
+  hasRunnableLlmConnection: boolean;
+  hasRequiredRevenueConnections?: boolean;
+  missingRequiredConnections?: string[];
   creditSummary: {
     availableCredits: number;
     plan: AutopilotPlan;
@@ -59,6 +66,8 @@ export type AppShellModel = {
     actions: Array<{
       label: string;
       href: string;
+      method?: "GET" | "POST";
+      payload?: Record<string, string>;
     }>;
   } | null;
 };
@@ -202,6 +211,99 @@ function buildWorkspaceHandoff(profile: CompanyHqProfile) {
     };
   }
 
+  const hasFirstValue = isLaunchMilestoneAtLeast({
+    current: profile.nextMilestone,
+    target: "first_value_created",
+  });
+  const hasFirstOffer = isLaunchMilestoneAtLeast({
+    current: profile.nextMilestone,
+    target: "first_offer_live",
+  });
+  const hasCheckoutLive = isLaunchMilestoneAtLeast({
+    current: profile.nextMilestone,
+    target: "first_checkout_live",
+  });
+  const hasFirstRevenue = isLaunchMilestoneAtLeast({
+    current: profile.nextMilestone,
+    target: "first_revenue_recorded",
+  });
+
+  const nextTitle = hasFirstRevenue
+    ? "Revenue-Loop ausbauen"
+    : hasCheckoutLive
+      ? "Ersten Umsatz bestätigen"
+      : hasFirstOffer
+        ? "Checkout live schalten"
+        : hasFirstValue
+          ? "Angebot live markieren"
+          : "Ersten Value-Path starten";
+  const nextHref = hasFirstRevenue
+    ? "/app/chat"
+    : hasCheckoutLive
+      ? "/launch"
+      : hasFirstOffer
+        ? "/api/stripe/checkout"
+        : hasFirstValue
+          ? "/app/chat"
+          : "/app/chat";
+  const nextDescription = hasFirstRevenue
+    ? "Erster Umsatz ist verbucht. Jetzt aus einem Treffer ein wiederholbares System machen."
+    : hasCheckoutLive
+      ? "Checkout ist aktiv. Als Nächstes den ersten erfolgreichen Zahlungseingang absichern."
+      : hasFirstOffer
+        ? "Dein Angebot ist live. Jetzt den Checkout-Pfad für den ersten Zahlungseingang aktivieren."
+        : hasFirstValue
+          ? "Du hast bereits ersten Wert erzeugt. Jetzt das Angebot offiziell live schalten."
+          : profile.valueModel;
+  const progressChecklist = hasFirstRevenue
+    ? ["Briefing gespeichert", "Checkout aktiv", "Erster Umsatz verbucht"]
+    : hasCheckoutLive
+      ? ["Briefing gespeichert", "Angebot live", "Checkout aktiv"]
+      : hasFirstOffer
+        ? ["Briefing gespeichert", "Erster Wert erzeugt", "Angebot live"]
+        : hasFirstValue
+          ? ["Briefing gespeichert", "Workspace verbunden", "Erster Wert erzeugt"]
+          : ["Briefing gespeichert", "Workspace verbunden", "Nächster Schritt: Ersten Wert erzeugen"];
+  const progressActions = hasFirstRevenue
+    ? [
+        { label: "Revenue-Loop planen", href: "/app/chat" },
+        { label: "Connections prüfen", href: "/app/connections" },
+      ]
+    : hasCheckoutLive
+      ? [
+          { label: "Launch-Status öffnen", href: "/launch" },
+          { label: "Im Workspace weiter", href: "/app/chat" },
+        ]
+      : hasFirstOffer
+        ? [
+            { label: "Checkout starten", href: "/api/stripe/checkout", method: "POST" as const },
+            { label: "Angebot prüfen", href: "/app/company-hq" },
+          ]
+      : hasFirstValue
+        ? [
+            {
+              label: "Angebot live markieren",
+              href: "/api/revenue/events",
+              method: "POST" as const,
+              payload: {
+                event: "first_offer_live",
+              },
+            },
+            { label: "Connections prüfen", href: "/app/connections" },
+          ]
+      : [
+          {
+            label: "Ersten Wert markieren",
+            href: "/api/revenue/events",
+            method: "POST" as const,
+            payload: {
+              event: "first_value_created",
+              summary: "Erster wertvoller Output im Workspace erzeugt.",
+            },
+          },
+          { label: "Firmenprofil prüfen", href: "/app/company-hq" },
+        ];
+
   return {
     page: {
       eyebrow: "Launch Workspace",
@@ -210,29 +312,30 @@ function buildWorkspaceHandoff(profile: CompanyHqProfile) {
         "Dein Profil steht. Jetzt setzt du daraus die ersten operativen Schritte, Verbindungen und Ergebnisse um.",
     },
     nextStep: {
-      title: "Erste Verbindungen anschließen",
-      href: "/app/connections",
-      description:
-        "Verbinde jetzt die Werkzeuge, die zu deinem Angebot und deiner Zielgruppe passen, damit deine Firma sofort handeln kann.",
+      title: nextTitle,
+      href: nextHref,
+      description: nextDescription,
     },
-    checklist: [
-      "Briefing gespeichert",
-      "Workspace verbunden",
-      "Nächster Schritt: Verbindungen anschließen",
-    ],
+    checklist: progressChecklist,
     handoff: {
       headline: "Deine Richtung steht. Jetzt geht es in die Ausführung.",
       summary:
-        "Du startest nicht mehr bei null. Der Workspace übernimmt jetzt die Schwerpunkte, die du im Onboarding festgelegt hast.",
+        "Du startest nicht mehr bei null. Der Workspace übernimmt jetzt Revenue-Track, Angebot und die nächsten operativen Schritte.",
       highlights: [
         { label: "Angebot", value: profile.offer },
         { label: "Zielgruppe", value: profile.audience },
+        {
+          label: "Revenue-Track",
+          value:
+            profile.revenueTrack === "content_business"
+              ? "Content Business"
+              : profile.revenueTrack === "software_business"
+                ? "Software Business"
+                : "Service Business",
+        },
         { label: "Nächster Fokus", value: profile.priorities },
       ],
-      actions: [
-        { label: "Firmenprofil prüfen", href: "/app/company-hq" },
-        { label: "Verbindungen anschließen", href: "/app/connections" },
-      ],
+      actions: progressActions,
     },
   };
 }
@@ -251,7 +354,15 @@ function blockedMessageForStatus(status: ProvisioningStatus) {
 }
 
 function blockedMessageForMissingLlm() {
-  return "Bevor deine Operatoren arbeiten koennen, brauchst du mindestens einen verbundenen Modellzugang wie OpenAI oder Anthropic.";
+  return "Bevor deine Operatoren arbeiten koennen, braucht mindestens ein Agent einen lauffähigen LLM-Pfad mit gebundenem Secret (z. B. OpenAI oder Anthropic).";
+}
+
+function blockedMessageForMissingRequiredConnections(missingRequiredConnections: string[]) {
+  const missingLabels = missingRequiredConnections
+    .map((connection) => getRequiredConnectionLabel(connection as RequiredConnectionId))
+    .join(", ");
+
+  return `Vor dem ersten produktiven Lauf fehlen noch Pflichtverbindungen für deinen Revenue-Track: ${missingLabels}.`;
 }
 
 export function buildAppShellModel(input: ShellInput): AppShellModel {
@@ -260,13 +371,20 @@ export function buildAppShellModel(input: ShellInput): AppShellModel {
   const pageCopy = isChatFocus
     ? buildWorkspaceHandoff(input.companyHqProfile)
     : pageCopyForPath(input.currentPath);
-  const needsLlmConnection = isChatFocus && canOpenWorkspace && !input.hasLlmConnection;
-  const access = needsLlmConnection ? "blocked" : canOpenWorkspace ? "ready" : "blocked";
+  const needsLlmConnection = isChatFocus && canOpenWorkspace && !input.hasRunnableLlmConnection;
+  const needsRequiredConnections =
+    isChatFocus &&
+    canOpenWorkspace &&
+    input.hasRunnableLlmConnection &&
+    !(input.hasRequiredRevenueConnections ?? true);
+  const access = needsLlmConnection || needsRequiredConnections ? "blocked" : canOpenWorkspace ? "ready" : "blocked";
   const blockedMessage = needsLlmConnection
     ? blockedMessageForMissingLlm()
-    : canOpenWorkspace
-      ? null
-      : blockedMessageForStatus(input.autopilotState.provisioningStatus);
+    : needsRequiredConnections
+      ? blockedMessageForMissingRequiredConnections(input.missingRequiredConnections ?? [])
+      : canOpenWorkspace
+        ? null
+        : blockedMessageForStatus(input.autopilotState.provisioningStatus);
   const nextStep = needsLlmConnection
     ? {
         title: "Modellzugang verbinden",
@@ -274,6 +392,13 @@ export function buildAppShellModel(input: ShellInput): AppShellModel {
         description:
           "Wähle jetzt deinen bevorzugten LLM-Zugang aus und hinterlege den API-Key, damit CEO und Operatoren sofort lauffähig sind.",
       }
+    : needsRequiredConnections
+      ? {
+          title: "Pflichtverbindungen abschließen",
+          href: "/app/connections",
+          description:
+            "Verbinde jetzt die verbleibenden Kernzugänge für deinen Revenue-Track, damit der erste Wertpfad ohne Friktion läuft.",
+        }
     : pageCopy.nextStep;
 
   return {

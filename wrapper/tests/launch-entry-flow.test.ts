@@ -6,7 +6,8 @@ describe("resolveLaunchEntryDecision", () => {
     const unauthenticated = resolveLaunchEntryDecision({
       userId: null,
       hasCompanyHqBriefing: false,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
+      hasRequiredRevenueConnections: false,
       availableCredits: 0,
       plan: "free",
       companyId: null,
@@ -20,7 +21,8 @@ describe("resolveLaunchEntryDecision", () => {
     const readyToProvision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
+      hasRequiredRevenueConnections: false,
       availableCredits: 120,
       plan: "launch",
       companyId: null,
@@ -34,7 +36,8 @@ describe("resolveLaunchEntryDecision", () => {
     const workspaceReady = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
-      hasLlmConnection: true,
+      hasRunnableLlmConnection: true,
+      hasRequiredRevenueConnections: true,
       availableCredits: 118,
       plan: "launch",
       companyId: "cmp_123",
@@ -50,7 +53,8 @@ describe("resolveLaunchEntryDecision", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
+      hasRequiredRevenueConnections: false,
       availableCredits: 50,
       plan: "starter",
       companyId: null,
@@ -66,7 +70,8 @@ describe("resolveLaunchEntryDecision", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
+      hasRequiredRevenueConnections: false,
       availableCredits: 20,
       plan: "launch",
       companyId: null,
@@ -82,7 +87,8 @@ describe("resolveLaunchEntryDecision", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: false,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
+      hasRequiredRevenueConnections: false,
       availableCredits: 120,
       plan: "launch",
       companyId: null,
@@ -98,7 +104,25 @@ describe("resolveLaunchEntryDecision", () => {
     const decision = resolveLaunchEntryDecision({
       userId: "user_123",
       hasCompanyHqBriefing: true,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
+      hasRequiredRevenueConnections: true,
+      availableCredits: 118,
+      plan: "launch",
+      companyId: "cmp_123",
+      provisioningStatus: "active",
+      canOpenWorkspace: true,
+    });
+
+    expect(decision.step).toBe("connections");
+    expect(decision.href).toBe("/app/connections?preset=openai");
+  });
+
+  it("keeps a runnable user on connections until required revenue connectors are complete", () => {
+    const decision = resolveLaunchEntryDecision({
+      userId: "user_123",
+      hasCompanyHqBriefing: true,
+      hasRunnableLlmConnection: true,
+      hasRequiredRevenueConnections: false,
       availableCredits: 118,
       plan: "launch",
       companyId: "cmp_123",

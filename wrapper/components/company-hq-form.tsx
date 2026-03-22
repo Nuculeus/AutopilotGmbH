@@ -2,20 +2,47 @@
 
 import { startTransition, useState } from "react";
 import type { CompanyHqProfile } from "@/lib/company-hq";
+import { revenueTrackOptions } from "@/lib/guided-launch";
+import { getRequiredConnectionLabel, type RevenueTrack } from "@/lib/revenue-track";
 
 type CompanyHqFormProps = {
   initialProfile: CompanyHqProfile;
 };
 
 export function CompanyHqForm({ initialProfile }: CompanyHqFormProps) {
-  const [profile, setProfile] = useState(initialProfile);
+  const defaultTrack = revenueTrackOptions[0];
+  const [profile, setProfile] = useState<CompanyHqProfile>({
+    ...initialProfile,
+    revenueTrack: initialProfile.revenueTrack ?? defaultTrack.id,
+    valueModel: initialProfile.valueModel || defaultTrack.valueModel,
+    requiredConnections:
+      initialProfile.requiredConnections.length > 0
+        ? initialProfile.requiredConnections
+        : defaultTrack.requiredConnections,
+    nextMilestone: initialProfile.nextMilestone ?? "briefing_ready",
+  });
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  function updateField(key: keyof CompanyHqProfile, value: string) {
+  function updateField(
+    key: "companyGoal" | "offer" | "audience" | "tone" | "priorities" | "valueModel",
+    value: string,
+  ) {
     setProfile((current) => ({
       ...current,
       [key]: value,
+    }));
+  }
+
+  function applyRevenueTrack(track: RevenueTrack) {
+    const option = revenueTrackOptions.find((entry) => entry.id === track);
+    if (!option) return;
+
+    setProfile((current) => ({
+      ...current,
+      revenueTrack: track,
+      valueModel: option.valueModel,
+      requiredConnections: option.requiredConnections,
     }));
   }
 
@@ -37,6 +64,10 @@ export function CompanyHqForm({ initialProfile }: CompanyHqFormProps) {
             audience: profile.audience,
             tone: profile.tone,
             priorities: profile.priorities,
+            revenueTrack: profile.revenueTrack,
+            valueModel: profile.valueModel,
+            requiredConnections: profile.requiredConnections,
+            nextMilestone: profile.nextMilestone,
           }),
         });
         const data = await response.json();
@@ -108,6 +139,37 @@ export function CompanyHqForm({ initialProfile }: CompanyHqFormProps) {
             value={profile.priorities}
           />
         </label>
+        <label className="guided-field guided-field-wide">
+          <span>Primärer Revenue-Track</span>
+          <select
+            onChange={(event) => applyRevenueTrack(event.target.value as RevenueTrack)}
+            value={profile.revenueTrack ?? "service_business"}
+          >
+            {revenueTrackOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="guided-field guided-field-wide">
+          <span>Monetarisierungsmodell</span>
+          <textarea
+            onChange={(event) => updateField("valueModel", event.target.value)}
+            rows={3}
+            value={profile.valueModel}
+          />
+        </label>
+        <div className="guided-field guided-field-wide">
+          <span>Pflichtverbindungen</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {profile.requiredConnections.map((connection) => (
+              <span key={connection} className="workspace-launch-link">
+                {getRequiredConnectionLabel(connection)}
+              </span>
+            ))}
+          </div>
+        </div>
         <div className="guided-form-actions">
           <button className="app-primary-cta" disabled={isPending} type="submit">
             {isPending ? "Wird gespeichert..." : "Firmenkern speichern"}

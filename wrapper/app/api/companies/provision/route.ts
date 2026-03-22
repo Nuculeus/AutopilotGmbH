@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
+import { hasStoredCompanyHqBriefing, normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { bootstrapCompany } from "@/lib/paperclip-admin";
 
 function isBrowserNavigation(request: Request) {
@@ -46,6 +47,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "No credits or active plan available" },
       { status: 402 },
+    );
+  }
+
+  const briefingProfile = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
+  if (!hasStoredCompanyHqBriefing(briefingProfile)) {
+    return NextResponse.json(
+      { error: "Briefing fehlt. Bitte schliesse zuerst das Guided Onboarding ab." },
+      { status: 409 },
     );
   }
 

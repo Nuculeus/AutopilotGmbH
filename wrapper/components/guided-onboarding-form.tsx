@@ -6,7 +6,8 @@ import {
   hasStoredCompanyHqBriefing,
   type CompanyHqProfile,
 } from "@/lib/company-hq";
-import { companyHqSetupSections } from "@/lib/guided-launch";
+import { companyHqSetupSections, revenueTrackOptions } from "@/lib/guided-launch";
+import { getRequiredConnectionLabel, type RevenueTrack } from "@/lib/revenue-track";
 
 type GuidedOnboardingFormProps = {
   initialProfile: CompanyHqProfile;
@@ -15,17 +16,44 @@ type GuidedOnboardingFormProps = {
 export function GuidedOnboardingForm({
   initialProfile,
 }: GuidedOnboardingFormProps) {
+  const defaultTrack = revenueTrackOptions[0];
   const router = useRouter();
   const [idea, setIdea] = useState("");
-  const [profile, setProfile] = useState(initialProfile);
+  const [profile, setProfile] = useState<CompanyHqProfile>({
+    ...initialProfile,
+    revenueTrack: initialProfile.revenueTrack ?? defaultTrack.id,
+    valueModel: initialProfile.valueModel || defaultTrack.valueModel,
+    requiredConnections:
+      initialProfile.requiredConnections.length > 0
+        ? initialProfile.requiredConnections
+        : defaultTrack.requiredConnections,
+    nextMilestone: initialProfile.nextMilestone ?? "briefing_ready",
+  });
   const [message, setMessage] = useState<string | null>(null);
   const [isDrafting, setIsDrafting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  function updateField(key: keyof CompanyHqProfile, value: string) {
+  function updateField(
+    key: "companyGoal" | "offer" | "audience" | "tone" | "priorities" | "valueModel",
+    value: string,
+  ) {
     setProfile((current) => ({
       ...current,
       [key]: value,
+    }));
+  }
+
+  function applyRevenueTrack(track: RevenueTrack) {
+    const option = revenueTrackOptions.find((entry) => entry.id === track);
+
+    if (!option) return;
+
+    setProfile((current) => ({
+      ...current,
+      revenueTrack: track,
+      valueModel: option.valueModel,
+      requiredConnections: option.requiredConnections,
+      nextMilestone: current.nextMilestone ?? "briefing_ready",
     }));
   }
 
@@ -101,6 +129,10 @@ export function GuidedOnboardingForm({
           audience: profile.audience,
           tone: profile.tone,
           priorities: profile.priorities,
+          revenueTrack: profile.revenueTrack,
+          valueModel: profile.valueModel,
+          requiredConnections: profile.requiredConnections,
+          nextMilestone: profile.nextMilestone,
         }),
       });
       const data = await response.json();
@@ -177,6 +209,58 @@ export function GuidedOnboardingForm({
             />
           </label>
         ))}
+      </section>
+
+      <section className="app-focus-card">
+        <p className="app-surface-eyebrow">Revenue-Track</p>
+        <h2 className="app-surface-title app-onboarding-title">
+          Wie soll dein Aufbau zuerst Geld verdienen?
+        </h2>
+        <p className="app-surface-copy app-onboarding-copy">
+          Du startest mit einem klaren Primärpfad. Später können wir weitere Tracks ergänzen.
+        </p>
+        <div className="guided-grid guided-grid-three">
+          {revenueTrackOptions.map((option) => (
+            <label key={option.id} className="guided-card">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="app-surface-eyebrow">Track</p>
+                  <h3 className="guided-title">{option.label}</h3>
+                </div>
+                <input
+                  checked={profile.revenueTrack === option.id}
+                  name="revenue-track"
+                  onChange={() => applyRevenueTrack(option.id)}
+                  type="radio"
+                />
+              </div>
+              <p className="guided-prompt">{option.description}</p>
+              <p className="guided-helper">{option.firstActionTitle}</p>
+            </label>
+          ))}
+        </div>
+        <label className="guided-field guided-card mt-4">
+          <p className="app-surface-eyebrow">Monetarisierung</p>
+          <span className="guided-title">Wodurch entsteht Umsatz?</span>
+          <span className="guided-prompt">
+            Wir nutzen diesen Satz, um deine ersten Aufgaben im Workspace auszurichten.
+          </span>
+          <textarea
+            onChange={(event) => updateField("valueModel", event.target.value)}
+            rows={3}
+            value={profile.valueModel}
+          />
+        </label>
+        <div className="guided-action-row mt-4">
+          <span className="app-soft text-sm">Pflichtverbindungen für den Start:</span>
+          <div className="flex flex-wrap gap-2">
+            {profile.requiredConnections.map((connection) => (
+              <span key={connection} className="workspace-launch-link">
+                {getRequiredConnectionLabel(connection)}
+              </span>
+            ))}
+          </div>
+        </div>
       </section>
 
       <div className="guided-form-actions">

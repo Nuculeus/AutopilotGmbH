@@ -3,11 +3,20 @@ import { buildAppShellModel } from "@/lib/app-shell";
 import { getCurrentUserState } from "@/lib/current-user";
 
 export default async function AppChatPage() {
-  const { creditSummary, autopilotState, companyHqProfile, hasLlmConnection } = await getCurrentUserState();
+  const {
+    creditSummary,
+    autopilotState,
+    companyHqProfile,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
+    missingRequiredConnections,
+  } = await getCurrentUserState();
   const model = buildAppShellModel({
     currentPath: "/app/chat",
     companyHqProfile,
-    hasLlmConnection,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
+    missingRequiredConnections,
     creditSummary: {
       availableCredits: creditSummary.availableCredits,
       plan: creditSummary.plan,

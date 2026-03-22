@@ -13,6 +13,8 @@ describe("generateCompanyHqDraft", () => {
     expect(result.profile.companyGoal).toContain("YouTube-Kanal");
     expect(result.profile.offer.length).toBeGreaterThan(0);
     expect(result.profile.audience.length).toBeGreaterThan(0);
+    expect(result.profile.revenueTrack).toBe("content_business");
+    expect(result.profile.requiredConnections.length).toBeGreaterThan(0);
   });
 
   it("returns a structured openai draft when an api key is available", async () => {
@@ -53,5 +55,7 @@ describe("generateCompanyHqDraft", () => {
     expect(result.mode).toBe("openai");
     expect(result.profile.offer).toContain("Videos");
     expect(result.profile.tone).toContain("pragmatisch");
+    expect(result.profile.revenueTrack).toBe("content_business");
+    expect(result.profile.valueModel.length).toBeGreaterThan(0);
   });
 });

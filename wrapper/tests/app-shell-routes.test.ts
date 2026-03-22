@@ -7,7 +7,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
-      hasLlmConnection: true,
+      hasRunnableLlmConnection: true,
       creditSummary: {
         availableCredits: 120,
         plan: "launch",
@@ -34,7 +34,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -57,7 +57,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/overview",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "launch",
@@ -79,7 +79,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/chat",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
-      hasLlmConnection: true,
+      hasRunnableLlmConnection: true,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -112,9 +112,14 @@ describe("buildAppShellModel", () => {
         audience: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
         tone: "klar, deutsch, vertrauenswuerdig",
         priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        revenueTrack: "service_business",
+        valueModel: "Retainer fuer laufende Automationsbetreuung.",
+        requiredConnections: ["llm_any", "stripe", "outreach_channel"],
+        nextMilestone: "workspace_ready",
         updatedAt: "2026-03-21T12:00:00.000Z",
       },
-      hasLlmConnection: true,
+      hasRunnableLlmConnection: true,
+      hasRequiredRevenueConnections: true,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -129,12 +134,12 @@ describe("buildAppShellModel", () => {
     });
 
     expect(model.page.title).toBe("Dein Arbeitsbereich ist bereit");
-    expect(model.nextStep.title).toBe("Erste Verbindungen anschließen");
-    expect(model.nextStep.href).toBe("/app/connections");
+    expect(model.nextStep.title).toBe("Ersten Value-Path starten");
+    expect(model.nextStep.href).toBe("/app/chat");
     expect(model.checklist).toEqual([
       "Briefing gespeichert",
       "Workspace verbunden",
-      "Nächster Schritt: Verbindungen anschließen",
+      "Nächster Schritt: Ersten Wert erzeugen",
     ]);
     expect(model.workspaceHandoff?.headline).toBe("Deine Richtung steht. Jetzt geht es in die Ausführung.");
     expect(model.workspaceHandoff?.highlights).toEqual([
@@ -147,10 +152,21 @@ describe("buildAppShellModel", () => {
         value: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
       },
       {
+        label: "Revenue-Track",
+        value: "Service Business",
+      },
+      {
         label: "Nächster Fokus",
         value: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
       },
     ]);
+    expect(model.workspaceHandoff?.actions[0]).toEqual(
+      expect.objectContaining({
+        label: "Ersten Wert markieren",
+        href: "/api/revenue/events",
+        method: "POST",
+      }),
+    );
   });
 
   it("blocks chat until a runnable llm connection exists", () => {
@@ -162,6 +178,10 @@ describe("buildAppShellModel", () => {
         audience: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
         tone: "klar, deutsch, vertrauenswuerdig",
         priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        revenueTrack: "service_business",
+        valueModel: "Retainer fuer laufende Automationsbetreuung.",
+        requiredConnections: ["llm_any", "stripe", "outreach_channel"],
+        nextMilestone: "workspace_ready",
         updatedAt: "2026-03-21T12:00:00.000Z",
       },
       creditSummary: {
@@ -175,19 +195,94 @@ describe("buildAppShellModel", () => {
         workspaceStatus: "ready",
         canOpenWorkspace: true,
       },
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
     });
 
     expect(model.access).toBe("blocked");
-    expect(model.blockedMessage).toContain("Modellzugang");
+    expect(model.blockedMessage).toContain("LLM-Pfad");
     expect(model.nextStep.href).toBe("/app/connections?preset=openai");
+  });
+
+  it("keeps chat blocked until required revenue connections are complete", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/chat",
+      companyHqProfile: {
+        companyGoal: "Wir bauen einen KI-gestuetzten Telefonservice fuer regionale Dienstleister.",
+        offer: "Voice-Rezeption mit Terminhandling und Lead-Qualifizierung.",
+        audience: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
+        tone: "klar, deutsch, vertrauenswuerdig",
+        priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        revenueTrack: "service_business",
+        valueModel: "Retainer fuer laufende Automationsbetreuung.",
+        requiredConnections: ["llm_any", "stripe", "outreach_channel"],
+        nextMilestone: "workspace_ready",
+        updatedAt: "2026-03-21T12:00:00.000Z",
+      },
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+      hasRunnableLlmConnection: true,
+      hasRequiredRevenueConnections: false,
+      missingRequiredConnections: ["stripe", "outreach_channel"],
+    });
+
+    expect(model.access).toBe("blocked");
+    expect(model.blockedMessage).toContain("Pflichtverbindungen");
+    expect(model.nextStep.href).toBe("/app/connections");
+  });
+
+  it("updates workspace next step when first value is already created", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/chat",
+      companyHqProfile: {
+        companyGoal: "Wir bauen einen KI-gestuetzten Telefonservice fuer regionale Dienstleister.",
+        offer: "Voice-Rezeption mit Terminhandling und Lead-Qualifizierung.",
+        audience: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
+        tone: "klar, deutsch, vertrauenswuerdig",
+        priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        revenueTrack: "service_business",
+        valueModel: "Retainer fuer laufende Automationsbetreuung.",
+        requiredConnections: ["llm_any", "stripe", "outreach_channel"],
+        nextMilestone: "first_value_created",
+        updatedAt: "2026-03-21T12:00:00.000Z",
+      },
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+      hasRunnableLlmConnection: true,
+      hasRequiredRevenueConnections: true,
+    });
+
+    expect(model.nextStep.title).toBe("Angebot live markieren");
+    expect(model.workspaceHandoff?.actions[0]).toEqual(
+      expect.objectContaining({
+        href: "/api/revenue/events",
+        method: "POST",
+      }),
+    );
   });
 
   it("guides company hq toward the next operational setup step", () => {
     const model = buildAppShellModel({
       currentPath: "/app/company-hq",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -210,7 +305,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/connections",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "free",
@@ -233,7 +328,7 @@ describe("buildAppShellModel", () => {
     const model = buildAppShellModel({
       currentPath: "/app/apps",
       companyHqProfile: EMPTY_COMPANY_HQ_PROFILE,
-      hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
       creditSummary: {
         availableCredits: 20,
         plan: "free",

@@ -86,7 +86,19 @@ function parsePositiveInt(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function readLimitForMethod(method: BridgeMethod) {
+function readLimitForRoute(alias: BridgeAlias, method: BridgeMethod) {
+  if (alias === "workspace-api") {
+    if (method === "GET" || method === "HEAD") {
+      return parsePositiveInt(process.env.PAPERCLIP_BRIDGE_WORKSPACE_API_READS_PER_MINUTE, 240);
+    }
+
+    return parsePositiveInt(process.env.PAPERCLIP_BRIDGE_WORKSPACE_API_WRITES_PER_MINUTE, 40);
+  }
+
+  if (alias === "workspace-assets") {
+    return parsePositiveInt(process.env.PAPERCLIP_BRIDGE_WORKSPACE_ASSET_READS_PER_MINUTE, 600);
+  }
+
   if (method !== "GET" && method !== "HEAD") {
     return parsePositiveInt(process.env.PAPERCLIP_BRIDGE_WRITES_PER_MINUTE, 6);
   }
@@ -106,7 +118,7 @@ function assertRateLimit(
   method: BridgeMethod,
   targetPath: string,
 ) {
-  const limit = readLimitForMethod(method);
+  const limit = readLimitForRoute(alias, method);
   const now = Date.now();
   const windowStart = now - 60_000;
   const key = `${userId}:${companyId}:${method}:${rateLimitScope(alias, targetPath)}`;

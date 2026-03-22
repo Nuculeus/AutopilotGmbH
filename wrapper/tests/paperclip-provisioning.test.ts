@@ -32,6 +32,15 @@ describe("POST /api/companies/provision", () => {
           plan: "free",
         },
       },
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir automatisieren Support fuer DACH-KMU.",
+          offer: "KI-Agenten als Service.",
+          audience: "Regionale Unternehmen.",
+          tone: "Klar, pragmatisch.",
+          priorities: "Ersten zahlenden Kunden gewinnen.",
+        },
+      },
     });
 
     vi.stubGlobal(
@@ -92,6 +101,15 @@ describe("POST /api/companies/provision", () => {
           bridgePrincipalId: "clerk:user_123",
         },
       },
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir automatisieren Support fuer DACH-KMU.",
+          offer: "KI-Agenten als Service.",
+          audience: "Regionale Unternehmen.",
+          tone: "Klar, pragmatisch.",
+          priorities: "Ersten zahlenden Kunden gewinnen.",
+        },
+      },
     });
 
     const fetchMock = vi.fn();
@@ -123,6 +141,15 @@ describe("POST /api/companies/provision", () => {
       publicMetadata: {
         autopilotCredits: {
           plan: "free",
+        },
+      },
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir automatisieren Support fuer DACH-KMU.",
+          offer: "KI-Agenten als Service.",
+          audience: "Regionale Unternehmen.",
+          tone: "Klar, pragmatisch.",
+          priorities: "Ersten zahlenden Kunden gewinnen.",
         },
       },
     });
@@ -165,6 +192,15 @@ describe("POST /api/companies/provision", () => {
           plan: "free",
         },
       },
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir automatisieren Support fuer DACH-KMU.",
+          offer: "KI-Agenten als Service.",
+          audience: "Regionale Unternehmen.",
+          tone: "Klar, pragmatisch.",
+          priorities: "Ersten zahlenden Kunden gewinnen.",
+        },
+      },
     });
 
     vi.stubGlobal(
@@ -204,5 +240,39 @@ describe("POST /api/companies/provision", () => {
         }),
       }),
     );
+  });
+
+  it("blocks provisioning when no guided briefing has been saved yet", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotCredits: {
+          plan: "starter",
+        },
+      },
+      privateMetadata: {},
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { POST } = await import("@/app/api/companies/provision/route");
+    const response = await POST(
+      new Request("http://localhost/api/companies/provision", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Meine Autopilot GmbH",
+        }),
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(String(payload.error)).toContain("Briefing");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,11 @@
-import type { CompanyHqProfile } from "@/lib/company-hq";
+import {
+  getRevenueTrackBlueprint,
+  type RequiredConnectionId,
+  type RevenueTrack,
+} from "@/lib/revenue-track";
 
 export type GuidedSection = {
-  field: Exclude<keyof CompanyHqProfile, "updatedAt">;
+  field: "companyGoal" | "offer" | "audience" | "tone" | "priorities";
   title: string;
   prompt: string;
   helper: string;
@@ -20,6 +24,16 @@ export type AppStarterTemplate = {
   title: string;
   description: string;
   kickoffPrompt: string;
+};
+
+export type RevenueTrackOption = {
+  id: RevenueTrack;
+  label: string;
+  description: string;
+  valueModel: string;
+  firstActionTitle: string;
+  firstActionPrompt: string;
+  requiredConnections: RequiredConnectionId[];
 };
 
 export const companyHqSetupSections: GuidedSection[] = [
@@ -114,5 +128,29 @@ export const appStarterTemplates: AppStarterTemplate[] = [
     description: "Mache die wichtigsten Aufgaben, Prioritäten und Verantwortlichkeiten sichtbar.",
     kickoffPrompt:
       "Erstelle ein einfaches Operations-Board für die nächsten 30 Tage mit Prioritäten, Aufgaben und Verantwortlichkeiten.",
+  },
+];
+
+export const revenueTrackOptions: RevenueTrackOption[] = [
+  {
+    id: "service_business",
+    label: "Service Business",
+    description:
+      "Schnellster Weg zu erstem Umsatz: klares Angebot, erste Kunden, monatlicher Retainer.",
+    ...getRevenueTrackBlueprint("service_business"),
+  },
+  {
+    id: "content_business",
+    label: "Content Business",
+    description:
+      "Audience und Inhalte als Motor für Leads, Sponsorings oder digitale Produkte.",
+    ...getRevenueTrackBlueprint("content_business"),
+  },
+  {
+    id: "software_business",
+    label: "Software Business",
+    description:
+      "Micro-SaaS oder Tool-Angebot mit klarer Checkout- und Deploy-Route.",
+    ...getRevenueTrackBlueprint("software_business"),
   },
 ];

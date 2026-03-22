@@ -5,20 +5,40 @@ import { formatPlanLabel } from "../../lib/credits";
 import { getCurrentUserState } from "../../lib/current-user";
 import { resolveLaunchEntryDecision } from "../../lib/launch-entry";
 import { resolveLaunchFlowState } from "../../lib/launch-flow";
+import { advanceRevenueMilestone } from "../../lib/revenue-track";
 
 export default async function DashboardPage() {
-  const { userId, hasCompanyHqBriefing, hasLlmConnection, creditSummary, autopilotState } = await getCurrentUserState();
+  const {
+    userId,
+    hasCompanyHqBriefing,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
+    companyHqProfile,
+    revenueStatus,
+    creditSummary,
+    autopilotState,
+  } = await getCurrentUserState();
   const flow = resolveLaunchFlowState({
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
+    hasCompanyHqBriefing,
     companyId: autopilotState.companyId,
     provisioningStatus: autopilotState.provisioningStatus,
     canOpenWorkspace: autopilotState.canOpenWorkspace,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
+    revenueMilestone: autopilotState.canOpenWorkspace
+      ? advanceRevenueMilestone(
+          companyHqProfile.nextMilestone,
+          hasRequiredRevenueConnections ? "workspace_ready" : "model_ready",
+        )
+      : companyHqProfile.nextMilestone,
   });
   const launchEntry = resolveLaunchEntryDecision({
     userId,
     hasCompanyHqBriefing,
-    hasLlmConnection,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,
@@ -57,6 +77,15 @@ export default async function DashboardPage() {
       value: String(creditSummary.consumedCredits),
       detail: "Wird spaeter pro Workflow und Agentenlauf belastet",
       icon: FileBarChart2,
+    },
+    {
+      label: "Billing Health",
+      value: revenueStatus.billingHealth === "attention" ? "attention" : "stabil",
+      detail:
+        revenueStatus.latestEvent?.kind === "payment_failed"
+          ? "Zuletzt gab es ein fehlgeschlagenes Invoice-Payment. Stripe-Daten pruefen."
+          : revenueStatus.payoutStatusLabel,
+      icon: Shield,
     },
   ];
 

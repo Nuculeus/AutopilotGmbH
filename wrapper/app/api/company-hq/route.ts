@@ -1,6 +1,11 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { normalizeCompanyHqProfile } from "@/lib/company-hq";
+import {
+  normalizeLaunchRevenueMilestone,
+  normalizeRequiredConnections,
+  normalizeRevenueTrack,
+} from "@/lib/revenue-track";
 
 function readField(body: unknown, key: string) {
   const value = body && typeof body === "object" ? (body as Record<string, unknown>)[key] : undefined;
@@ -21,6 +26,16 @@ export async function POST(request: Request) {
     audience: readField(body, "audience"),
     tone: readField(body, "tone"),
     priorities: readField(body, "priorities"),
+    revenueTrack: normalizeRevenueTrack(
+      body && typeof body === "object" ? (body as Record<string, unknown>).revenueTrack : null,
+    ),
+    valueModel: readField(body, "valueModel"),
+    requiredConnections: normalizeRequiredConnections(
+      body && typeof body === "object" ? (body as Record<string, unknown>).requiredConnections : null,
+    ),
+    nextMilestone: normalizeLaunchRevenueMilestone(
+      body && typeof body === "object" ? (body as Record<string, unknown>).nextMilestone : null,
+    ),
   };
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -34,8 +49,10 @@ export async function POST(request: Request) {
   const user = await client.users.getUser(userId);
   const current = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
   const nextProfile = {
-    ...current,
-    ...nextInput,
+    ...normalizeCompanyHqProfile({
+      ...current,
+      ...nextInput,
+    }),
     updatedAt: new Date().toISOString(),
   };
 

@@ -19,6 +19,21 @@ export type PaperclipAgentConfiguration = {
   adapterConfig: Record<string, unknown>;
 };
 
+export type PaperclipAdapterEnvironmentCheck = {
+  code: string;
+  level: "info" | "warn" | "error";
+  message: string;
+  hint?: string;
+  detail?: string;
+};
+
+export type PaperclipAdapterEnvironmentTestResult = {
+  adapterType: string;
+  status: "pass" | "warn" | "fail";
+  checks: PaperclipAdapterEnvironmentCheck[];
+  testedAt: string;
+};
+
 function getPaperclipInternalUrl() {
   return (
     process.env.PAPERCLIP_INTERNAL_URL?.trim()
@@ -52,7 +67,7 @@ function getBridgeHeaders(bridgePrincipalId?: string | null) {
 
 async function readInternalJson<T>(input: {
   path: string;
-  method?: "GET" | "PATCH";
+  method?: "GET" | "PATCH" | "POST";
   bridgePrincipalId?: string | null;
   body?: Record<string, unknown>;
 }) {
@@ -93,6 +108,22 @@ export async function updateAgentAdapterConfig(input: {
   return readInternalJson<unknown>({
     path: `/api/agents/${input.agentId}`,
     method: "PATCH",
+    bridgePrincipalId: input.bridgePrincipalId,
+    body: {
+      adapterConfig: input.adapterConfig,
+    },
+  });
+}
+
+export async function testAdapterEnvironment(input: {
+  companyId: string;
+  bridgePrincipalId: string;
+  adapterType: string;
+  adapterConfig: Record<string, unknown>;
+}) {
+  return readInternalJson<PaperclipAdapterEnvironmentTestResult>({
+    path: `/api/companies/${input.companyId}/adapters/${input.adapterType}/test-environment`,
+    method: "POST",
     bridgePrincipalId: input.bridgePrincipalId,
     body: {
       adapterConfig: input.adapterConfig,

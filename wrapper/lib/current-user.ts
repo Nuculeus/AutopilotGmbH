@@ -2,15 +2,28 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
 import { hasStoredCompanyHqBriefing, normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { summarizeCredits } from "@/lib/credits";
-import { hasConnectedLlmProvider } from "@/lib/llm-connections";
+import { evaluateRequiredConnections } from "@/lib/revenue-track";
+import { hasConnectedLlmProvider, hasRunnableLlmBinding } from "@/lib/llm-connections";
+import { normalizeAutopilotRevenueMetadata, summarizeRevenueStatus } from "@/lib/revenue-events";
+import { canTargetCompany, listCompanyAgents } from "@/lib/paperclip-admin";
 import { BridgeError, type PaperclipCompanySecret, readPaperclipBridgeJson } from "@/lib/paperclip-bridge";
 
-async function resolveHasLlmConnection(input: {
+type ModelConnectionState = {
+  secretNames: string[];
+  hasConnectedLlmProvider: boolean;
+  hasRunnableLlmConnection: boolean;
+};
+
+async function resolveModelConnectionState(input: {
   userId: string;
   autopilotState: ReturnType<typeof summarizeAutopilotState>;
-}) {
+}): Promise<ModelConnectionState> {
   if (!input.autopilotState.canOpenWorkspace) {
-    return false;
+    return {
+      secretNames: [],
+      hasConnectedLlmProvider: false,
+      hasRunnableLlmConnection: false,
+    };
   }
 
   try {
@@ -21,10 +34,47 @@ async function resolveHasLlmConnection(input: {
       autopilotState: input.autopilotState,
     });
 
-    return hasConnectedLlmProvider(secrets);
+    const hasConnectedProvider = hasConnectedLlmProvider(secrets);
+    const secretNames = secrets.map((secret) => secret.name);
+
+    if (!hasConnectedProvider || !canTargetCompany(input.autopilotState)) {
+      return {
+        secretNames,
+        hasConnectedLlmProvider: hasConnectedProvider,
+        hasRunnableLlmConnection: false,
+      };
+    }
+
+    const agents = await listCompanyAgents({
+      companyId: input.autopilotState.companyId,
+      bridgePrincipalId: input.autopilotState.bridgePrincipalId,
+    });
+
+    return {
+      secretNames,
+      hasConnectedLlmProvider: hasConnectedProvider,
+      hasRunnableLlmConnection: hasRunnableLlmBinding(
+        agents.map((agent) => ({
+          id: agent.id,
+          name: agent.name,
+          role: agent.role,
+          adapterType: agent.adapterType,
+          adapterConfig:
+            typeof agent.adapterConfig === "object" &&
+            agent.adapterConfig !== null &&
+            !Array.isArray(agent.adapterConfig)
+              ? agent.adapterConfig
+              : {},
+        })),
+      ),
+    };
   } catch (error) {
     if (error instanceof BridgeError) {
-      return false;
+      return {
+        secretNames: [],
+        hasConnectedLlmProvider: false,
+        hasRunnableLlmConnection: false,
+      };
     }
     throw error;
   }
@@ -34,12 +84,17 @@ export async function getCurrentUserState() {
   const { userId } = await auth();
 
   if (!userId) {
+    const revenue = normalizeAutopilotRevenueMetadata(null);
     return {
       userId: null,
       user: null,
       companyHqProfile: normalizeCompanyHqProfile(null),
       hasCompanyHqBriefing: false,
       hasLlmConnection: false,
+      hasRunnableLlmConnection: false,
+      hasRequiredRevenueConnections: false,
+      missingRequiredConnections: [],
+      revenueStatus: summarizeRevenueStatus(revenue),
       creditSummary: summarizeCredits(null),
       autopilotState: summarizeAutopilotState(null),
     };
@@ -50,15 +105,25 @@ export async function getCurrentUserState() {
   const creditSummary = summarizeCredits(user.publicMetadata?.autopilotCredits);
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
   const companyHqProfile = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
+  const revenue = normalizeAutopilotRevenueMetadata(user.privateMetadata?.autopilotRevenue);
   const hasCompanyHqBriefing = hasStoredCompanyHqBriefing(companyHqProfile);
-  const hasLlmConnection = await resolveHasLlmConnection({ userId, autopilotState });
+  const modelConnection = await resolveModelConnectionState({ userId, autopilotState });
+  const requiredConnections = evaluateRequiredConnections({
+    hasLlmConnection: modelConnection.hasRunnableLlmConnection,
+    requiredConnections: companyHqProfile.requiredConnections,
+    secretNames: modelConnection.secretNames,
+  });
 
   return {
     userId,
     user,
     companyHqProfile,
     hasCompanyHqBriefing,
-    hasLlmConnection,
+    hasLlmConnection: modelConnection.hasConnectedLlmProvider,
+    hasRunnableLlmConnection: modelConnection.hasRunnableLlmConnection,
+    hasRequiredRevenueConnections: requiredConnections.hasRequiredConnections,
+    missingRequiredConnections: requiredConnections.missingConnections,
+    revenueStatus: summarizeRevenueStatus(revenue),
     creditSummary,
     autopilotState,
   };

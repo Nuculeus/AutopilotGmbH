@@ -3,6 +3,7 @@ import {
   appStarterTemplates,
   companyHqSetupSections,
   priorityConnectionTemplates,
+  revenueTrackOptions,
 } from "@/lib/guided-launch";
 
 describe("guided launch content", () => {
@@ -31,6 +32,14 @@ describe("guided launch content", () => {
       "seo-page",
       "support-flow",
       "ops-board",
+    ]);
+  });
+
+  it("defines exactly three launch revenue tracks", () => {
+    expect(revenueTrackOptions.map((item) => item.id)).toEqual([
+      "service_business",
+      "content_business",
+      "software_business",
     ]);
   });
 });

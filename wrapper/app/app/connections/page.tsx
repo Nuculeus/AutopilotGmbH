@@ -7,14 +7,19 @@ import {
 } from "@/lib/paperclip-bridge";
 import { getCurrentUserState } from "@/lib/current-user";
 import { priorityConnectionTemplates } from "@/lib/guided-launch";
+import {
+  getRequiredConnectionLabel,
+  type RequiredConnectionId,
+} from "@/lib/revenue-track";
 
 async function loadConnectionsState() {
-  const { userId, autopilotState } = await getCurrentUserState();
+  const { userId, autopilotState, companyHqProfile } = await getCurrentUserState();
 
   if (!userId) {
     return {
       providers: [] as PaperclipSecretProvider[],
       secrets: [] as PaperclipCompanySecret[],
+      requiredConnections: [] as string[],
       error: null as string | null,
     };
   }
@@ -35,12 +40,18 @@ async function loadConnectionsState() {
       }),
     ]);
 
-    return { providers, secrets, error: null };
+    return {
+      providers,
+      secrets,
+      requiredConnections: companyHqProfile.requiredConnections,
+      error: null,
+    };
   } catch (error) {
     if (error instanceof BridgeError) {
       return {
         providers: [] as PaperclipSecretProvider[],
         secrets: [] as PaperclipCompanySecret[],
+        requiredConnections: companyHqProfile.requiredConnections,
         error: error.message,
       };
     }
@@ -55,7 +66,7 @@ type AppConnectionsPageProps = {
 export default async function AppConnectionsPage({
   searchParams,
 }: AppConnectionsPageProps) {
-  const { providers, secrets, error } = await loadConnectionsState();
+  const { providers, secrets, requiredConnections, error } = await loadConnectionsState();
   const params = searchParams ? await searchParams : {};
   const preset =
     typeof params.preset === "string" ? params.preset : null;
@@ -69,6 +80,18 @@ export default async function AppConnectionsPage({
           Verbinde zuerst genau die Zugänge, die deine Firma sofort
           handlungsfähig machen. Der tiefere Katalog bleibt darunter erhalten.
         </p>
+        {requiredConnections.length > 0 ? (
+          <div className="guided-action-row mt-4">
+            <span className="app-soft text-sm">Pflichtverbindungen laut Track:</span>
+            <div className="flex flex-wrap gap-2">
+              {requiredConnections.map((connection) => (
+                <span key={connection} className="workspace-launch-link">
+                  {getRequiredConnectionLabel(connection as RequiredConnectionId)}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {error ? <p className="app-muted mt-4 text-sm">{error}</p> : null}
       </div>
 

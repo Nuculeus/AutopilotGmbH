@@ -9,6 +9,10 @@ describe("normalizeCompanyHqProfile", () => {
       audience: "",
       tone: "",
       priorities: "",
+      revenueTrack: null,
+      valueModel: "",
+      requiredConnections: [],
+      nextMilestone: null,
       updatedAt: null,
     });
   });
@@ -21,6 +25,10 @@ describe("normalizeCompanyHqProfile", () => {
         audience: "Audience",
         tone: "Tone",
         priorities: "Priorities",
+        revenueTrack: "software_business",
+        valueModel: "Subscription",
+        requiredConnections: ["llm_any", "stripe", "deploy_stack"],
+        nextMilestone: "first_offer_live",
         updatedAt: "2026-03-21T00:00:00.000Z",
         ignored: 123,
       }),
@@ -30,8 +38,26 @@ describe("normalizeCompanyHqProfile", () => {
       audience: "Audience",
       tone: "Tone",
       priorities: "Priorities",
+      revenueTrack: "software_business",
+      valueModel: "Subscription",
+      requiredConnections: ["llm_any", "stripe", "deploy_stack"],
+      nextMilestone: "first_offer_live",
       updatedAt: "2026-03-21T00:00:00.000Z",
     });
+  });
+
+  it("derives a valid revenue track context for legacy profiles without new fields", () => {
+    const profile = normalizeCompanyHqProfile({
+      companyGoal: "Wir bauen KI-Services fuer regionale Betriebe.",
+      offer: "Automationen als monatlicher Retainer.",
+      audience: "KMU in DACH.",
+      priorities: "Pilotkunden gewinnen.",
+    });
+
+    expect(profile.revenueTrack).toBe("service_business");
+    expect(profile.valueModel.length).toBeGreaterThan(0);
+    expect(profile.requiredConnections.length).toBeGreaterThan(0);
+    expect(profile.nextMilestone).toBe("briefing_ready");
   });
 
   it("recognizes when a launch-briefing is complete enough to continue", () => {

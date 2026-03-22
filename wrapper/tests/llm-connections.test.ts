@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAgentConfigWithLlmSecret,
   hasConnectedLlmProvider,
+  hasRunnableLlmBinding,
   planAgentLlmBindings,
   resolveLlmProviderFromSecretName,
 } from "@/lib/llm-connections";
@@ -9,7 +10,10 @@ import {
 describe("llm connections helpers", () => {
   it("recognizes standard provider keys regardless of casing", () => {
     expect(resolveLlmProviderFromSecretName("openai_api_key")).toBe("openai");
+    expect(resolveLlmProviderFromSecretName("openai")).toBe("openai");
+    expect(resolveLlmProviderFromSecretName("gpt_access_token")).toBe("openai");
     expect(resolveLlmProviderFromSecretName("ANTHROPIC_API_KEY")).toBe("anthropic");
+    expect(resolveLlmProviderFromSecretName("claude_token")).toBe("anthropic");
     expect(resolveLlmProviderFromSecretName("Gemini_Api_Key")).toBe("gemini");
     expect(resolveLlmProviderFromSecretName("stripe_api_key")).toBe(null);
   });
@@ -63,6 +67,30 @@ describe("llm connections helpers", () => {
     ).toBeNull();
   });
 
+  it("binds openai secret for process adapters as well", () => {
+    const nextConfig = buildAgentConfigWithLlmSecret({
+      agentAdapterType: "process",
+      adapterConfig: {
+        command: "node",
+        args: ["run.js"],
+      },
+      secretId: "sec_openai",
+      secretName: "openai",
+    });
+
+    expect(nextConfig).toEqual({
+      command: "node",
+      args: ["run.js"],
+      env: {
+        OPENAI_API_KEY: {
+          type: "secret_ref",
+          secretId: "sec_openai",
+          version: "latest",
+        },
+      },
+    });
+  });
+
   it("plans updates only for compatible default agents", () => {
     const updates = planAgentLlmBindings({
       secretId: "sec_openai",
@@ -100,5 +128,42 @@ describe("llm connections helpers", () => {
         },
       },
     ]);
+  });
+
+  it("detects runnable agent bindings only when adapter env is wired", () => {
+    expect(
+      hasRunnableLlmBinding([
+        {
+          id: "agent_ceo",
+          name: "CEO",
+          role: "ceo",
+          adapterType: "codex_local",
+          adapterConfig: {
+            model: "gpt-5.4",
+            env: {
+              OPENAI_API_KEY: {
+                type: "secret_ref",
+                secretId: "sec_openai",
+                version: "latest",
+              },
+            },
+          },
+        },
+      ]),
+    ).toBe(true);
+
+    expect(
+      hasRunnableLlmBinding([
+        {
+          id: "agent_ceo",
+          name: "CEO",
+          role: "ceo",
+          adapterType: "codex_local",
+          adapterConfig: {
+            model: "gpt-5.4",
+          },
+        },
+      ]),
+    ).toBe(false);
   });
 });

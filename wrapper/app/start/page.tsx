@@ -6,6 +6,7 @@ import { formatPlanLabel } from "../../lib/credits";
 import { getCurrentUserState } from "../../lib/current-user";
 import { resolveLaunchEntryDecision } from "../../lib/launch-entry";
 import { resolveLaunchFlowState } from "../../lib/launch-flow";
+import { advanceRevenueMilestone } from "../../lib/revenue-track";
 
 const checklist = [
   "Aufbauprofil gespeichert und Firmenkern geklärt",
@@ -15,7 +16,15 @@ const checklist = [
 ];
 
 export default async function StartPage() {
-  const { userId, hasCompanyHqBriefing, hasLlmConnection, creditSummary, autopilotState } = await getCurrentUserState();
+  const {
+    userId,
+    hasCompanyHqBriefing,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
+    companyHqProfile,
+    creditSummary,
+    autopilotState,
+  } = await getCurrentUserState();
 
   if (userId && !hasCompanyHqBriefing && !autopilotState.companyId && autopilotState.provisioningStatus === "not_started") {
     redirect("/onboarding");
@@ -24,14 +33,24 @@ export default async function StartPage() {
   const flow = resolveLaunchFlowState({
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
+    hasCompanyHqBriefing,
     companyId: autopilotState.companyId,
     provisioningStatus: autopilotState.provisioningStatus,
     canOpenWorkspace: autopilotState.canOpenWorkspace,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
+    revenueMilestone: autopilotState.canOpenWorkspace
+      ? advanceRevenueMilestone(
+          companyHqProfile.nextMilestone,
+          hasRequiredRevenueConnections ? "workspace_ready" : "model_ready",
+        )
+      : companyHqProfile.nextMilestone,
   });
   const launchEntry = resolveLaunchEntryDecision({
     userId,
     hasCompanyHqBriefing,
-    hasLlmConnection,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
     availableCredits: creditSummary.availableCredits,
     plan: creditSummary.plan,
     companyId: autopilotState.companyId,

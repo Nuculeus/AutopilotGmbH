@@ -21,7 +21,8 @@ export type LaunchEntryDecision = {
 type LaunchEntryInput = {
   userId: string | null;
   hasCompanyHqBriefing: boolean;
-  hasLlmConnection: boolean;
+  hasRunnableLlmConnection: boolean;
+  hasRequiredRevenueConnections: boolean;
   availableCredits: number;
   plan: AutopilotPlan;
   companyId: string | null;
@@ -51,18 +52,38 @@ export function resolveLaunchEntryDecision(
   const flow = resolveLaunchFlowState({
     availableCredits: input.availableCredits,
     plan: input.plan,
+    hasCompanyHqBriefing: input.hasCompanyHqBriefing,
     companyId: input.companyId,
     provisioningStatus: input.provisioningStatus,
     canOpenWorkspace: input.canOpenWorkspace,
+    hasRunnableLlmConnection: input.hasRunnableLlmConnection,
+    hasRequiredRevenueConnections: input.hasRequiredRevenueConnections,
+    revenueMilestone: null,
   });
 
   switch (flow.stage) {
+    case "model_ready":
+      return {
+        step: "connections",
+        href: "/app/connections?preset=openai",
+        label: "LLM verbinden",
+      };
+    case "connections_required":
+      return {
+        step: "connections",
+        href: "/app/connections",
+        label: "Pflichtverbindungen abschließen",
+      };
     case "workspace_ready":
-      if (!input.hasLlmConnection) {
+    case "first_value_created":
+    case "first_offer_live":
+    case "first_checkout_live":
+    case "first_revenue_recorded":
+      if (!input.hasRunnableLlmConnection || !input.hasRequiredRevenueConnections) {
         return {
           step: "connections",
           href: "/app/connections",
-          label: "Modellzugang verbinden",
+          label: "Verbindungen vervollständigen",
         };
       }
       return {
@@ -84,6 +105,7 @@ export function resolveLaunchEntryDecision(
         label: "Provisioning verfolgen",
       };
     case "ready_to_provision":
+    case "briefing_ready":
       return {
         step: "provision",
         href: "/start",

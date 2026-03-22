@@ -10,11 +10,20 @@ type AppLayoutProps = {
 export default async function AppLayout({ children }: AppLayoutProps) {
   const headerStore = await headers();
   const currentPath = headerStore.get("x-current-path") ?? "/app/overview";
-  const { creditSummary, autopilotState, companyHqProfile, hasLlmConnection } = await getCurrentUserState();
+  const {
+    creditSummary,
+    autopilotState,
+    companyHqProfile,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
+    missingRequiredConnections,
+  } = await getCurrentUserState();
   const model = buildAppShellModel({
     currentPath,
     companyHqProfile,
-    hasLlmConnection,
+    hasRunnableLlmConnection,
+    hasRequiredRevenueConnections,
+    missingRequiredConnections,
     creditSummary: {
       availableCredits: creditSummary.availableCredits,
       plan: creditSummary.plan,

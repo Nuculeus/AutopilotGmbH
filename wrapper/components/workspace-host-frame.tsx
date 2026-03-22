@@ -12,6 +12,8 @@ type WorkspaceHostFrameProps = {
     actions: Array<{
       label: string;
       href: string;
+      method?: "GET" | "POST";
+      payload?: Record<string, string>;
     }>;
   } | null;
 };
@@ -40,9 +42,22 @@ export function WorkspaceHostFrame({
           </div>
           <div className="workspace-launch-actions">
             {launchHandoff.actions.map((action) => (
-              <Link key={action.href} className="workspace-launch-link" href={action.href}>
-                {action.label}
-              </Link>
+              action.method === "POST" ? (
+                <form key={`${action.href}-${action.label}`} action={action.href} method="POST">
+                  {action.payload
+                    ? Object.entries(action.payload).map(([key, value]) => (
+                        <input key={key} name={key} type="hidden" value={value} />
+                      ))
+                    : null}
+                  <button className="workspace-launch-link" type="submit">
+                    {action.label}
+                  </button>
+                </form>
+              ) : (
+                <Link key={action.href} className="workspace-launch-link" href={action.href}>
+                  {action.label}
+                </Link>
+              )
             ))}
           </div>
         </div>

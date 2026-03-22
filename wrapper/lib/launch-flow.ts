@@ -1,11 +1,19 @@
 import type { AutopilotPlan } from "@/lib/credits";
 import type { ProvisioningStatus } from "@/lib/autopilot-metadata";
+import type { LaunchRevenueMilestone } from "@/lib/revenue-track";
 
 export type LaunchFlowStage =
   | "needs_access"
   | "ready_to_provision"
+  | "briefing_ready"
   | "provisioning_pending"
+  | "model_ready"
+  | "connections_required"
   | "workspace_ready"
+  | "first_value_created"
+  | "first_offer_live"
+  | "first_checkout_live"
+  | "first_revenue_recorded"
   | "provisioning_failed"
   | "workspace_suspended";
 
@@ -27,9 +35,13 @@ export type LaunchFlowState = {
 export type LaunchFlowInput = {
   availableCredits: number;
   plan: AutopilotPlan;
+  hasCompanyHqBriefing: boolean;
   companyId: string | null;
   provisioningStatus: ProvisioningStatus;
   canOpenWorkspace: boolean;
+  hasRunnableLlmConnection: boolean;
+  hasRequiredRevenueConnections: boolean;
+  revenueMilestone: LaunchRevenueMilestone | null;
 };
 
 function hasPlanAccess(plan: AutopilotPlan) {
@@ -82,7 +94,92 @@ export function resolveLaunchFlowState(input: LaunchFlowInput): LaunchFlowState 
     };
   }
 
+  if (input.canOpenWorkspace && input.companyId && input.provisioningStatus === "active" && !input.hasRunnableLlmConnection) {
+    return {
+      stage: "model_ready",
+      canProvisionCompany: false,
+      canOpenWorkspace: false,
+      title: "Modellzugang fehlt noch",
+      description: "Mindestens ein Agent braucht einen lauffähigen LLM-Pfad, bevor der Workspace ohne Fehlermeldung starten kann.",
+      primaryAction: {
+        href: "/app/connections?preset=openai",
+        label: "LLM verbinden und binden",
+      },
+    };
+  }
+
+  if (input.canOpenWorkspace && input.companyId && input.provisioningStatus === "active" && !input.hasRequiredRevenueConnections) {
+    return {
+      stage: "connections_required",
+      canProvisionCompany: false,
+      canOpenWorkspace: false,
+      title: "Pflichtverbindungen für deinen Revenue-Track fehlen",
+      description: "Verbinde zuerst die track-spezifischen Kernzugänge, damit dein erster Value-Path nicht beim Start blockiert.",
+      primaryAction: {
+        href: "/app/connections",
+        label: "Pflichtverbindungen abschließen",
+      },
+    };
+  }
+
   if (input.canOpenWorkspace && input.companyId && input.provisioningStatus === "active") {
+    const milestone = input.revenueMilestone;
+    if (milestone === "first_value_created") {
+      return {
+        stage: "first_value_created",
+        canProvisionCompany: false,
+        canOpenWorkspace: true,
+        title: "Erster Wert erzeugt",
+        description: "Sehr gut. Jetzt Angebot live schalten und den ersten bezahlbaren Pfad abschließen.",
+        primaryAction: {
+          href: "/app/chat",
+          label: "Nächsten Revenue-Schritt starten",
+        },
+      };
+    }
+
+    if (milestone === "first_offer_live") {
+      return {
+        stage: "first_offer_live",
+        canProvisionCompany: false,
+        canOpenWorkspace: true,
+        title: "Erstes Angebot ist live",
+        description: "Als Nächstes Checkout und Zahlungsfluss finalisieren, damit aus Aktivierung echter Umsatz wird.",
+        primaryAction: {
+          href: "/app/chat",
+          label: "Checkout vorbereiten",
+        },
+      };
+    }
+
+    if (milestone === "first_checkout_live") {
+      return {
+        stage: "first_checkout_live",
+        canProvisionCompany: false,
+        canOpenWorkspace: true,
+        title: "Checkout ist aktiv",
+        description: "Nächster Zielzustand ist der erste erfolgreiche Zahlungseingang im Track.",
+        primaryAction: {
+          href: "/app/chat",
+          label: "Erste Zahlung auslösen",
+        },
+      };
+    }
+
+    if (milestone === "first_revenue_recorded") {
+      return {
+        stage: "first_revenue_recorded",
+        canProvisionCompany: false,
+        canOpenWorkspace: true,
+        title: "Erster Umsatz verbucht",
+        description: "Jetzt die nächsten wiederholbaren Revenue-Loops ausbauen und den Betrieb stabilisieren.",
+        primaryAction: {
+          href: "/app/chat",
+          label: "Revenue-Loop ausbauen",
+        },
+      };
+    }
+
     return {
       stage: "workspace_ready",
       canProvisionCompany: false,
@@ -98,11 +195,13 @@ export function resolveLaunchFlowState(input: LaunchFlowInput): LaunchFlowState 
 
   if (hasBudget) {
     return {
-      stage: "ready_to_provision",
+      stage: input.hasCompanyHqBriefing ? "briefing_ready" : "ready_to_provision",
       canProvisionCompany: true,
       canOpenWorkspace: false,
-      title: "Company kann jetzt erstellt werden",
-      description: "Credits oder Plan sind vorhanden. Als Nächstes erstellen wir die Company und den stabilen Bridge-Principal.",
+      title: input.hasCompanyHqBriefing ? "Briefing steht. Company kann jetzt erstellt werden." : "Company kann jetzt erstellt werden",
+      description: input.hasCompanyHqBriefing
+        ? "Der Kern ist geklärt. Als Nächstes erstellen wir die Company und den stabilen Bridge-Principal."
+        : "Credits oder Plan sind vorhanden. Als Nächstes erstellen wir die Company und den stabilen Bridge-Principal.",
       primaryAction: {
         href: "/api/companies/provision",
         label: "Firma jetzt bootstrappen",

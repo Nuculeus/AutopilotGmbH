@@ -3,6 +3,10 @@ import {
   normalizeCompanyHqProfile,
   type CompanyHqProfile,
 } from "@/lib/company-hq";
+import {
+  deriveRevenueTrackFromText,
+  getRevenueTrackBlueprint,
+} from "@/lib/revenue-track";
 
 export type CompanyHqDraftResult = {
   mode: "openai" | "fallback";
@@ -13,6 +17,8 @@ const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 function buildFallbackDraft(idea: string): CompanyHqDraftResult {
   const trimmedIdea = idea.trim();
+  const revenueTrack = deriveRevenueTrackFromText(trimmedIdea);
+  const revenueBlueprint = getRevenueTrackBlueprint(revenueTrack);
 
   return {
     mode: "fallback",
@@ -26,6 +32,10 @@ function buildFallbackDraft(idea: string): CompanyHqDraftResult {
       tone: "Klar, vertrauenswuerdig, pragmatisch und ohne Buzzword-Sprache.",
       priorities:
         "Ersten funktionierenden Use Case definieren, Angebot schaerfen und erste Nachfrage testen.",
+      revenueTrack,
+      valueModel: revenueBlueprint.valueModel,
+      requiredConnections: revenueBlueprint.requiredConnections,
+      nextMilestone: "briefing_ready",
     },
   };
 }
@@ -64,13 +74,48 @@ async function generateOpenAiDraft(idea: string) {
           schema: {
             type: "object",
             additionalProperties: false,
-            required: ["companyGoal", "offer", "audience", "tone", "priorities"],
+            required: [
+              "companyGoal",
+              "offer",
+              "audience",
+              "tone",
+              "priorities",
+              "revenueTrack",
+              "valueModel",
+              "requiredConnections",
+              "nextMilestone",
+            ],
             properties: {
               companyGoal: { type: "string" },
               offer: { type: "string" },
               audience: { type: "string" },
               tone: { type: "string" },
               priorities: { type: "string" },
+              revenueTrack: {
+                type: "string",
+                enum: ["service_business", "content_business", "software_business"],
+              },
+              valueModel: { type: "string" },
+              requiredConnections: {
+                type: "array",
+                minItems: 1,
+                items: {
+                  type: "string",
+                  enum: ["llm_any", "stripe", "outreach_channel", "publishing_channel", "deploy_stack"],
+                },
+              },
+              nextMilestone: {
+                type: "string",
+                enum: [
+                  "briefing_ready",
+                  "model_ready",
+                  "workspace_ready",
+                  "first_value_created",
+                  "first_offer_live",
+                  "first_checkout_live",
+                  "first_revenue_recorded",
+                ],
+              },
             },
           },
         },
@@ -79,7 +124,7 @@ async function generateOpenAiDraft(idea: string) {
         {
           role: "system",
           content:
-            "Du bist ein deutscher Onboarding-Assistent fuer ein Produkt, das Firmen, Kanaele, Automationen und operative KI-Setups startet. Erzeuge kurze, klare deutsche Vorschlaege fuer ein editierbares Firmenbriefing. Keine Marketingfloskeln, keine langen Saetze, keine JSON-Zusatzfelder.",
+            "Du bist ein deutscher Onboarding-Assistent fuer ein Produkt, das Firmen, Kanaele, Automationen und operative KI-Setups startet. Erzeuge kurze, klare deutsche Vorschlaege fuer ein editierbares Firmenbriefing plus revenueTrack, valueModel, requiredConnections und nextMilestone. Keine Marketingfloskeln, keine langen Saetze, keine JSON-Zusatzfelder.",
         },
         {
           role: "user",

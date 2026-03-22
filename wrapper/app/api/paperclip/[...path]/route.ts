@@ -1,9 +1,17 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
-import { planAgentLlmBindings } from "@/lib/llm-connections";
+import {
+  buildAgentConfigWithLlmSecret,
+  planAgentLlmBindings,
+} from "@/lib/llm-connections";
 import { canTargetCompany, listCompanyAgents, updateAgentAdapterConfig } from "@/lib/paperclip-admin";
-import { BridgeError, bridgePaperclipRequest } from "@/lib/paperclip-bridge";
+import {
+  BridgeError,
+  bridgePaperclipRequest,
+  readPaperclipBridgeJson,
+  type PaperclipCompanySecret,
+} from "@/lib/paperclip-bridge";
 
 type RouteContext = {
   params: Promise<{
@@ -53,6 +61,40 @@ function isSavedSecretPayload(payload: unknown): payload is { id: string; name: 
   );
 }
 
+type CreatedAgentPayload = {
+  id: string;
+  name: string;
+  role: string;
+  adapterType: string;
+  adapterConfig: Record<string, unknown>;
+};
+
+function isWorkspaceAgentCreate(path: string[], method: string) {
+  return path.length === 2
+    && path[0] === "workspace-api"
+    && path[1] === "agents"
+    && method.toUpperCase() === "POST";
+}
+
+function isCreatedAgentPayload(payload: unknown): payload is CreatedAgentPayload {
+  return Boolean(
+    payload
+      && typeof payload === "object"
+      && "id" in payload
+      && typeof payload.id === "string"
+      && "name" in payload
+      && typeof payload.name === "string"
+      && "role" in payload
+      && typeof payload.role === "string"
+      && "adapterType" in payload
+      && typeof payload.adapterType === "string"
+      && "adapterConfig" in payload
+      && typeof payload.adapterConfig === "object"
+      && payload.adapterConfig !== null
+      && !Array.isArray(payload.adapterConfig),
+  );
+}
+
 async function bindSavedLlmSecretToCompanyAgents(input: {
   autopilotState: ReturnType<typeof summarizeAutopilotState>;
   secret: { id: string; name: string };
@@ -92,6 +134,45 @@ async function bindSavedLlmSecretToCompanyAgents(input: {
       }),
     ),
   );
+}
+
+async function bindExistingLlmSecretToCreatedAgent(input: {
+  userId: string;
+  autopilotState: ReturnType<typeof summarizeAutopilotState>;
+  agent: CreatedAgentPayload;
+}) {
+  const target = input.autopilotState;
+  if (!canTargetCompany(target)) {
+    return;
+  }
+
+  const secrets = await readPaperclipBridgeJson<PaperclipCompanySecret[]>({
+    request: new Request("http://localhost/api/paperclip/secrets"),
+    pathSegments: ["secrets"],
+    userId: input.userId,
+    autopilotState: input.autopilotState,
+  });
+
+  for (const secret of secrets) {
+    const nextAdapterConfig = buildAgentConfigWithLlmSecret({
+      agentAdapterType: input.agent.adapterType,
+      adapterConfig: input.agent.adapterConfig,
+      secretId: secret.id,
+      secretName: secret.name,
+    });
+
+    if (!nextAdapterConfig) {
+      continue;
+    }
+
+    await updateAgentAdapterConfig({
+      agentId: input.agent.id,
+      bridgePrincipalId: target.bridgePrincipalId,
+      adapterConfig: nextAdapterConfig,
+    });
+
+    return;
+  }
 }
 
 async function handleBridgeRequest(request: Request, context: RouteContext) {
@@ -138,6 +219,20 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
         await bindSavedLlmSecretToCompanyAgents({
           autopilotState,
           secret: payload,
+        });
+      }
+
+      return NextResponse.json(payload, { status: upstream.status, headers });
+    }
+
+    if (isWorkspaceAgentCreate(path, request.method) && (contentType ?? "").includes("application/json")) {
+      const payload = await upstream.json().catch(() => null);
+
+      if (upstream.ok && isCreatedAgentPayload(payload)) {
+        await bindExistingLlmSecretToCreatedAgent({
+          userId,
+          autopilotState,
+          agent: payload,
         });
       }
 
