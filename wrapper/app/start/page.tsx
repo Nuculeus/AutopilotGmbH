@@ -8,6 +8,7 @@ import { resolveLaunchEntryDecision } from "../../lib/launch-entry";
 import { resolveLaunchFlowState } from "../../lib/launch-flow";
 import { advanceRevenueMilestone } from "../../lib/revenue-track";
 import { buildStartPageModel } from "../../lib/start-page";
+import { buildStartReliabilityModel } from "../../lib/start-reliability";
 
 const checklist = [
   "Aufbauprofil gespeichert und Firmenkern geklärt",
@@ -27,6 +28,7 @@ export default async function StartPage() {
     companyHqProfile,
     creditSummary,
     autopilotState,
+    provisioningRun,
   } = await getCurrentUserState();
   const hasReadyLlmConnection =
     hasRunnableLlmConnection && hasVerifiedLlmReadiness;
@@ -68,6 +70,17 @@ export default async function StartPage() {
     revenueTrack: companyHqProfile.revenueTrack,
     availableCredits: creditSummary.availableCredits,
     reversedCredits: creditSummary.reversedCredits,
+  });
+  const reliabilityModel = buildStartReliabilityModel({
+    provisioningStatus: autopilotState.provisioningStatus,
+    provisioningRun: provisioningRun
+      ? {
+          id: provisioningRun.id,
+          status: provisioningRun.status,
+          lastError: provisioningRun.lastError,
+          retryEligible: provisioningRun.retryEligible,
+        }
+      : null,
   });
 
   return (
@@ -144,6 +157,40 @@ export default async function StartPage() {
                 <p className="text-sm leading-7 text-[var(--soft)]">{item}</p>
               </div>
             ))}
+          </div>
+
+          <div className="panel-shell space-y-4">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
+                Reliability
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">
+                Launch-Laeufe bleiben nachvollziehbar
+              </h2>
+            </div>
+            <div className="credits-stack">
+              <div className="credit-stat">
+                <span className="credit-label">Aktueller Lauf</span>
+                <strong className="credit-value">{reliabilityModel.runLabel}</strong>
+              </div>
+              <div className="credit-stat">
+                <span className="credit-label">Status</span>
+                <strong className="credit-value">{reliabilityModel.stateLabel}</strong>
+              </div>
+              <div className="credit-stat">
+                <span className="credit-label">Belastungsschutz</span>
+                <strong className="credit-value">{reliabilityModel.chargeProtection}</strong>
+              </div>
+              {reliabilityModel.failureReason ? (
+                <div className="credit-stat">
+                  <span className="credit-label">Fehlergrund</span>
+                  <strong className="credit-value">{reliabilityModel.failureReason}</strong>
+                </div>
+              ) : null}
+            </div>
+            <p className="text-sm leading-7 text-[var(--soft)]">
+              {reliabilityModel.nextStepCopy}
+            </p>
           </div>
         </article>
 

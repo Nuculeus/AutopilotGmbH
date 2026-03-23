@@ -17,6 +17,7 @@ import {
 import { normalizeAutopilotRevenueMetadata, summarizeRevenueStatus } from "@/lib/revenue-events";
 import { canTargetCompany, listCompanyAgents } from "@/lib/paperclip-admin";
 import { BridgeError, type PaperclipCompanySecret, readPaperclipBridgeJson } from "@/lib/paperclip-bridge";
+import { getProvisioningRunForUser } from "@/lib/provisioning-store";
 
 type ModelConnectionState = {
   secretNames: string[];
@@ -111,6 +112,7 @@ export async function getCurrentUserState() {
       revenueStatus: summarizeRevenueStatus(revenue),
       creditSummary: summarizeCredits(null),
       autopilotState: summarizeAutopilotState(null),
+      provisioningRun: null,
     };
   }
 
@@ -168,6 +170,7 @@ export async function getCurrentUserState() {
     requiredConnections: companyHqProfile.requiredConnections,
     secretNames: modelConnection.secretNames,
   });
+  const provisioningRun = await getProvisioningRunForUser({ clerkUserId: userId });
 
   return {
     userId,
@@ -184,5 +187,6 @@ export async function getCurrentUserState() {
     revenueStatus: summarizeRevenueStatus(revenue),
     creditSummary,
     autopilotState,
+    provisioningRun,
   };
 }
