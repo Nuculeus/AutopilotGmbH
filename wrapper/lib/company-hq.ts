@@ -7,6 +7,7 @@ import {
   type RequiredConnectionId,
   type RevenueTrack,
 } from "@/lib/revenue-track";
+import { applyServiceEngineProfileDefaults } from "@/lib/service-engine";
 
 export type CompanyHqProfile = {
   companyGoal: string;
@@ -73,7 +74,7 @@ export function normalizeCompanyHqProfile(value: unknown): CompanyHqProfile {
     nextMilestone: normalizeLaunchRevenueMilestone(source.nextMilestone),
   });
 
-  return {
+  return applyServiceEngineProfileDefaults({
     companyGoal,
     offer,
     audience,
@@ -97,7 +98,7 @@ export function normalizeCompanyHqProfile(value: unknown): CompanyHqProfile {
         ? source.autonomyLevel
         : "guided",
     updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : null,
-  };
+  });
 }
 
 export function hasStoredCompanyHqBriefing(value: unknown) {

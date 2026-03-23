@@ -9,6 +9,7 @@ const onboardingBenefits = [
   "Du startest mit einer offenen Idee statt mit einer engen Firmen-Schablone.",
   "Wir übersetzen deinen Gedanken direkt in ein arbeitsfähiges Briefing.",
   "Provisioning und Workspace starten erst, wenn die Richtung klar genug ist.",
+  "Standardmäßig führen wir dich zuerst über den Service-Engine-Pfad zum ersten Umsatz.",
 ];
 
 export default async function OnboardingPage() {

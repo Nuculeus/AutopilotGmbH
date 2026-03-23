@@ -32,12 +32,23 @@ export async function POST(request: Request) {
       body && typeof body === "object" ? (body as Record<string, unknown>).revenueTrack : null,
     ),
     valueModel: readField(body, "valueModel"),
+    proofTarget: readField(body, "proofTarget"),
+    acquisitionChannel: readField(body, "acquisitionChannel"),
+    paymentNode: readField(body, "paymentNode"),
+    deliveryNode: readField(body, "deliveryNode"),
     requiredConnections: normalizeRequiredConnections(
       body && typeof body === "object" ? (body as Record<string, unknown>).requiredConnections : null,
     ),
     nextMilestone: normalizeLaunchRevenueMilestone(
       body && typeof body === "object" ? (body as Record<string, unknown>).nextMilestone : null,
     ),
+    autonomyLevel:
+      body && typeof body === "object"
+        ? ((body as Record<string, unknown>).autonomyLevel === "semi_auto" ||
+            (body as Record<string, unknown>).autonomyLevel === "auto"
+            ? (body as Record<string, unknown>).autonomyLevel
+            : "guided")
+        : "guided",
   };
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {

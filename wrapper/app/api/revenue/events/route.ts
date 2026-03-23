@@ -8,6 +8,7 @@ import {
   withFirstValueEvent,
   withRevenueEvent,
 } from "@/lib/revenue-events";
+import { defaultServiceRevenueSummary } from "@/lib/service-engine";
 
 type RevenueEventPayload = {
   event:
@@ -66,13 +67,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid revenue event payload" }, { status: 400 });
   }
 
-  const normalizedEvent = normalizeEventName(body.event);
-  const now = new Date().toISOString();
-  const summary = typeof body.summary === "string" ? body.summary.trim() : "";
-  const source = body.source === "workspace" || body.source === "stripe" ? body.source : "system";
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
+  const normalizedEvent = normalizeEventName(body.event);
+  const now = new Date().toISOString();
   const currentProfile = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
+  const summary =
+    typeof body.summary === "string" && body.summary.trim().length > 0
+      ? body.summary.trim()
+      : currentProfile.revenueTrack === "service_business"
+        ? defaultServiceRevenueSummary({
+            event: normalizedEvent,
+            profile: currentProfile,
+          })
+        : "";
+  const source = body.source === "workspace" || body.source === "stripe" ? body.source : "system";
   const currentRevenue = normalizeAutopilotRevenueMetadata(
     user.privateMetadata?.autopilotRevenue,
   );

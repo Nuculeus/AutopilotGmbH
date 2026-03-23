@@ -146,12 +146,12 @@ describe("buildAppShellModel", () => {
     });
 
     expect(model.page.title).toBe("Dein Arbeitsbereich ist bereit");
-    expect(model.nextStep.title).toBe("Ersten Value-Path starten");
+    expect(model.nextStep.title).toBe("Erstes Offer-Asset erzeugen");
     expect(model.nextStep.href).toBe("/app/chat");
     expect(model.checklist).toEqual([
       "Briefing gespeichert",
       "Workspace verbunden",
-      "Nächster Schritt: Ersten Wert erzeugen",
+      "Nächster Schritt: Proof-Asset fertigstellen",
     ]);
     expect(model.workspaceHandoff?.headline).toBe("Deine Richtung steht. Jetzt geht es in die Ausführung.");
     expect(model.workspaceHandoff?.highlights).toEqual([
@@ -168,13 +168,13 @@ describe("buildAppShellModel", () => {
         value: "Service Business",
       },
       {
-        label: "Nächster Fokus",
-        value: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        label: "Proof-Ziel",
+        value: "Erster zahlender Pilotkunde in 14 Tagen.",
       },
     ]);
     expect(model.workspaceHandoff?.actions[0]).toEqual(
       expect.objectContaining({
-        label: "Ersten Wert markieren",
+        label: "Proof-Asset fertigstellen",
         href: "/api/revenue/events",
         method: "POST",
       }),
@@ -334,10 +334,63 @@ describe("buildAppShellModel", () => {
       hasRequiredRevenueConnections: true,
     });
 
-    expect(model.nextStep.title).toBe("Angebot live markieren");
+    expect(model.nextStep.title).toBe("Service-Angebot live stellen");
     expect(model.workspaceHandoff?.actions[0]).toEqual(
       expect.objectContaining({
         href: "/api/revenue/events",
+        method: "POST",
+      }),
+    );
+  });
+
+  it("moves the service path from offer live into checkout activation", () => {
+    const model = buildAppShellModel({
+      currentPath: "/app/chat",
+      companyHqProfile: {
+        companyGoal: "Wir bauen einen KI-gestuetzten Telefonservice fuer regionale Dienstleister.",
+        offer: "Voice-Rezeption mit Terminhandling und Lead-Qualifizierung.",
+        audience: "KMU aus Handwerk, Praxen und Gastronomie im DACH-Raum.",
+        tone: "klar, deutsch, vertrauenswuerdig",
+        priorities: "Ersten Pilotkunden live nehmen und Verbindungen anschliessen.",
+        revenueTrack: "service_business",
+        valueModel: "Retainer fuer laufende Automationsbetreuung.",
+        requiredConnections: ["llm_any", "stripe", "outreach_channel"],
+        nextMilestone: "first_offer_live",
+        updatedAt: "2026-03-21T12:00:00.000Z",
+        ventureId: "venture_1",
+        proofTarget: "Erster zahlender Pilotkunde in 14 Tagen.",
+        budgetCapCents: null,
+        acquisitionChannel: "Outbound + Demo-Call",
+        paymentNode: "Stripe Checkout Link",
+        deliveryNode: "Kickoff-Call + 14-Tage-Umsetzung",
+        autonomyLevel: "guided",
+      },
+      creditSummary: {
+        availableCredits: 20,
+        plan: "free",
+      },
+      autopilotState: {
+        companyId: "cmp_123",
+        companyName: "Meine Autopilot GmbH",
+        provisioningStatus: "active",
+        workspaceStatus: "ready",
+        canOpenWorkspace: true,
+      },
+      hasRunnableLlmConnection: true,
+      llmReadiness: {
+        status: "ready",
+        summary: "LLM-Zugang ist lauffähig.",
+        checkedAt: "2026-03-22T06:00:00.000Z",
+        probedAdapterType: "codex_local",
+      },
+      hasRequiredRevenueConnections: true,
+    });
+
+    expect(model.nextStep.title).toBe("Checkout aktivieren");
+    expect(model.workspaceHandoff?.actions[0]).toEqual(
+      expect.objectContaining({
+        label: "Checkout aktivieren",
+        href: "/api/stripe/checkout",
         method: "POST",
       }),
     );

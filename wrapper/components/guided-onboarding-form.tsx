@@ -8,6 +8,7 @@ import {
 } from "@/lib/company-hq";
 import { companyHqSetupSections, revenueTrackOptions } from "@/lib/guided-launch";
 import { getRequiredConnectionLabel, type RevenueTrack } from "@/lib/revenue-track";
+import { applyServiceEngineProfileDefaults } from "@/lib/service-engine";
 
 type GuidedOnboardingFormProps = {
   initialProfile: CompanyHqProfile;
@@ -19,16 +20,18 @@ export function GuidedOnboardingForm({
   const defaultTrack = revenueTrackOptions[0];
   const router = useRouter();
   const [idea, setIdea] = useState("");
-  const [profile, setProfile] = useState<CompanyHqProfile>({
-    ...initialProfile,
-    revenueTrack: initialProfile.revenueTrack ?? defaultTrack.id,
-    valueModel: initialProfile.valueModel || defaultTrack.valueModel,
-    requiredConnections:
-      initialProfile.requiredConnections.length > 0
-        ? initialProfile.requiredConnections
-        : defaultTrack.requiredConnections,
-    nextMilestone: initialProfile.nextMilestone ?? "briefing_ready",
-  });
+  const [profile, setProfile] = useState<CompanyHqProfile>(
+    applyServiceEngineProfileDefaults({
+      ...initialProfile,
+      revenueTrack: initialProfile.revenueTrack ?? defaultTrack.id,
+      valueModel: initialProfile.valueModel || defaultTrack.valueModel,
+      requiredConnections:
+        initialProfile.requiredConnections.length > 0
+          ? initialProfile.requiredConnections
+          : defaultTrack.requiredConnections,
+      nextMilestone: initialProfile.nextMilestone ?? "briefing_ready",
+    }),
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [isDrafting, setIsDrafting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -48,7 +51,7 @@ export function GuidedOnboardingForm({
 
     if (!option) return;
 
-    setProfile((current) => ({
+    setProfile((current) => applyServiceEngineProfileDefaults({
       ...current,
       revenueTrack: track,
       valueModel: option.valueModel,
@@ -84,10 +87,12 @@ export function GuidedOnboardingForm({
         );
       }
 
-      setProfile((current) => ({
-        ...current,
-        ...data.profile,
-      }));
+      setProfile((current) =>
+        applyServiceEngineProfileDefaults({
+          ...current,
+          ...data.profile,
+        }),
+      );
       setMessage(
         data.mode === "openai"
           ? "Vorschlag erstellt. Passe alles an, bis es sich nach deiner Richtung anfühlt."
@@ -133,6 +138,11 @@ export function GuidedOnboardingForm({
           valueModel: profile.valueModel,
           requiredConnections: profile.requiredConnections,
           nextMilestone: profile.nextMilestone,
+          proofTarget: profile.proofTarget,
+          acquisitionChannel: profile.acquisitionChannel,
+          paymentNode: profile.paymentNode,
+          deliveryNode: profile.deliveryNode,
+          autonomyLevel: profile.autonomyLevel,
         }),
       });
       const data = await response.json();
@@ -145,7 +155,7 @@ export function GuidedOnboardingForm({
         );
       }
 
-      setProfile(data.profile as CompanyHqProfile);
+      setProfile(applyServiceEngineProfileDefaults(data.profile as CompanyHqProfile));
       router.push("/start");
       router.refresh();
     } catch (error) {
@@ -261,6 +271,15 @@ export function GuidedOnboardingForm({
             ))}
           </div>
         </div>
+        {profile.revenueTrack === "service_business" ? (
+          <div className="guided-card mt-4">
+            <p className="app-surface-eyebrow">Service Engine First</p>
+            <p className="guided-prompt">
+              Standardpfad: Offer-Asset fertigstellen, Service-Angebot live stellen,
+              Checkout aktivieren und den ersten Zahlungseingang verifizieren.
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <div className="guided-form-actions">

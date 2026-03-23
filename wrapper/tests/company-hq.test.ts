@@ -79,6 +79,10 @@ describe("normalizeCompanyHqProfile", () => {
     expect(profile.valueModel.length).toBeGreaterThan(0);
     expect(profile.requiredConnections.length).toBeGreaterThan(0);
     expect(profile.nextMilestone).toBe("briefing_ready");
+    expect(profile.proofTarget).toContain("Pilotkunde");
+    expect(profile.acquisitionChannel).toContain("Outbound");
+    expect(profile.paymentNode).toContain("Stripe");
+    expect(profile.deliveryNode).toContain("Kickoff");
   });
 
   it("recognizes when a launch-briefing is complete enough to continue", () => {

@@ -78,4 +78,59 @@ describe("POST /api/revenue/events", () => {
 
     vi.useRealTimers();
   });
+
+  it("fills a service-specific default summary when first value is recorded without custom copy", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-21T20:15:00.000Z"));
+
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {},
+      privateMetadata: {
+        autopilotCompanyHq: {
+          companyGoal: "Wir bauen KI-Agenten fuer Handwerksbetriebe.",
+          offer: "Voice-Rezeption fuer Terminhandling.",
+          audience: "Handwerksbetriebe in DACH.",
+          tone: "Klar und vertrauenswuerdig.",
+          priorities: "Pilotkunden live bringen.",
+          revenueTrack: "service_business",
+          valueModel: "Setup + Retainer.",
+          requiredConnections: ["llm_any", "stripe", "outreach_channel"],
+          nextMilestone: "workspace_ready",
+        },
+      },
+    });
+
+    const { POST } = await import("@/app/api/revenue/events/route");
+    const response = await POST(
+      new Request("http://localhost/api/revenue/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event: "first_value_created",
+        }),
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.revenue.firstValueEvent.summary).toContain("Offer-Asset");
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        privateMetadata: expect.objectContaining({
+          autopilotRevenue: expect.objectContaining({
+            firstValueEvent: expect.objectContaining({
+              summary: expect.stringContaining("Offer-Asset"),
+            }),
+          }),
+        }),
+      }),
+    );
+
+    vi.useRealTimers();
+  });
 });

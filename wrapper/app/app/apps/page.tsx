@@ -1,6 +1,7 @@
 import { BridgeError, type PaperclipDashboardSummary, readPaperclipBridgeJson } from "@/lib/paperclip-bridge";
 import { getCurrentUserState } from "@/lib/current-user";
 import { appStarterTemplates } from "@/lib/guided-launch";
+import { buildServiceStarterTemplates } from "@/lib/service-engine";
 
 async function loadSummary() {
   const { userId, autopilotState } = await getCurrentUserState();
@@ -23,6 +24,11 @@ async function loadSummary() {
 
 export default async function AppAppsPage() {
   const summary = await loadSummary();
+  const { companyHqProfile } = await getCurrentUserState();
+  const starterTemplates =
+    companyHqProfile.revenueTrack === "service_business"
+      ? buildServiceStarterTemplates(companyHqProfile)
+      : appStarterTemplates;
 
   return (
     <section className="space-y-6">
@@ -37,7 +43,7 @@ export default async function AppAppsPage() {
       </article>
 
       <section className="guided-grid">
-        {appStarterTemplates.map((item) => (
+        {starterTemplates.map((item) => (
           <article key={item.id} className="guided-card">
             <p className="app-surface-eyebrow">Starter App</p>
             <h3 className="guided-title">{item.title}</h3>

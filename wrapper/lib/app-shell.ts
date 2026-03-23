@@ -10,6 +10,7 @@ import {
   type RequiredConnectionId,
 } from "@/lib/revenue-track";
 import type { AutopilotLlmReadinessMetadata } from "@/lib/llm-readiness";
+import { applyServiceEngineProfileDefaults, buildServiceEnginePath } from "@/lib/service-engine";
 
 type ShellInput = {
   currentPath: string;
@@ -179,7 +180,8 @@ function pageCopyForPath(currentPath: string) {
 }
 
 function buildWorkspaceHandoff(profile: CompanyHqProfile) {
-  const hasBriefing = hasStoredCompanyHqBriefing(profile);
+  const normalizedProfile = applyServiceEngineProfileDefaults(profile);
+  const hasBriefing = hasStoredCompanyHqBriefing(normalizedProfile);
 
   if (!hasBriefing) {
     return {
@@ -214,23 +216,27 @@ function buildWorkspaceHandoff(profile: CompanyHqProfile) {
   }
 
   const hasFirstValue = isLaunchMilestoneAtLeast({
-    current: profile.nextMilestone,
+    current: normalizedProfile.nextMilestone,
     target: "first_value_created",
   });
   const hasFirstOffer = isLaunchMilestoneAtLeast({
-    current: profile.nextMilestone,
+    current: normalizedProfile.nextMilestone,
     target: "first_offer_live",
   });
   const hasCheckoutLive = isLaunchMilestoneAtLeast({
-    current: profile.nextMilestone,
+    current: normalizedProfile.nextMilestone,
     target: "first_checkout_live",
   });
   const hasFirstRevenue = isLaunchMilestoneAtLeast({
-    current: profile.nextMilestone,
+    current: normalizedProfile.nextMilestone,
     target: "first_revenue_recorded",
   });
+  const servicePath =
+    normalizedProfile.revenueTrack === "service_business"
+      ? buildServiceEnginePath(normalizedProfile)
+      : null;
 
-  const nextTitle = hasFirstRevenue
+  const nextTitle = servicePath?.title ?? (hasFirstRevenue
     ? "Revenue-Loop ausbauen"
     : hasCheckoutLive
       ? "Ersten Umsatz bestätigen"
@@ -238,8 +244,8 @@ function buildWorkspaceHandoff(profile: CompanyHqProfile) {
         ? "Checkout live schalten"
         : hasFirstValue
           ? "Angebot live markieren"
-          : "Ersten Value-Path starten";
-  const nextHref = hasFirstRevenue
+          : "Ersten Value-Path starten");
+  const nextHref = servicePath ? "/app/chat" : (hasFirstRevenue
     ? "/app/chat"
     : hasCheckoutLive
       ? "/launch"
@@ -247,17 +253,23 @@ function buildWorkspaceHandoff(profile: CompanyHqProfile) {
         ? "/api/stripe/checkout"
         : hasFirstValue
           ? "/app/chat"
-          : "/app/chat";
-  const nextDescription = hasFirstRevenue
+          : "/app/chat");
+  const nextDescription = servicePath?.description ?? (hasFirstRevenue
     ? "Erster Umsatz ist verbucht. Jetzt aus einem Treffer ein wiederholbares System machen."
     : hasCheckoutLive
       ? "Checkout ist aktiv. Als Nächstes den ersten erfolgreichen Zahlungseingang absichern."
       : hasFirstOffer
         ? "Dein Angebot ist live. Jetzt den Checkout-Pfad für den ersten Zahlungseingang aktivieren."
-        : hasFirstValue
-          ? "Du hast bereits ersten Wert erzeugt. Jetzt das Angebot offiziell live schalten."
-          : profile.valueModel;
-  const progressChecklist = hasFirstRevenue
+      : hasFirstValue
+        ? "Du hast bereits ersten Wert erzeugt. Jetzt das Angebot offiziell live schalten."
+        : normalizedProfile.valueModel);
+  const progressChecklist = servicePath
+    ? [
+        "Briefing gespeichert",
+        "Workspace verbunden",
+        servicePath.checklistTail,
+      ]
+    : hasFirstRevenue
     ? ["Briefing gespeichert", "Checkout aktiv", "Erster Umsatz verbucht"]
     : hasCheckoutLive
       ? ["Briefing gespeichert", "Angebot live", "Checkout aktiv"]
@@ -266,7 +278,7 @@ function buildWorkspaceHandoff(profile: CompanyHqProfile) {
         : hasFirstValue
           ? ["Briefing gespeichert", "Workspace verbunden", "Erster Wert erzeugt"]
           : ["Briefing gespeichert", "Workspace verbunden", "Nächster Schritt: Ersten Wert erzeugen"];
-  const progressActions = hasFirstRevenue
+  const progressActions = servicePath?.actions ?? (hasFirstRevenue
     ? [
         { label: "Revenue-Loop planen", href: "/app/chat" },
         { label: "Connections prüfen", href: "/app/connections" },
@@ -302,9 +314,9 @@ function buildWorkspaceHandoff(profile: CompanyHqProfile) {
               event: "first_value_created",
               summary: "Erster wertvoller Output im Workspace erzeugt.",
             },
-          },
+            },
           { label: "Firmenprofil prüfen", href: "/app/company-hq" },
-        ];
+        ]);
 
   return {
     page: {
@@ -322,20 +334,28 @@ function buildWorkspaceHandoff(profile: CompanyHqProfile) {
     handoff: {
       headline: "Deine Richtung steht. Jetzt geht es in die Ausführung.",
       summary:
-        "Du startest nicht mehr bei null. Der Workspace übernimmt jetzt Revenue-Track, Angebot und die nächsten operativen Schritte.",
+        normalizedProfile.revenueTrack === "service_business"
+          ? "Du startest nicht mehr bei null. Der Workspace führt dich jetzt durch Offer-Asset, Angebot, Checkout und den ersten Zahlungseingang."
+          : "Du startest nicht mehr bei null. Der Workspace übernimmt jetzt Revenue-Track, Angebot und die nächsten operativen Schritte.",
       highlights: [
-        { label: "Angebot", value: profile.offer },
-        { label: "Zielgruppe", value: profile.audience },
+        { label: "Angebot", value: normalizedProfile.offer },
+        { label: "Zielgruppe", value: normalizedProfile.audience },
         {
           label: "Revenue-Track",
           value:
-            profile.revenueTrack === "content_business"
+            normalizedProfile.revenueTrack === "content_business"
               ? "Content Business"
-              : profile.revenueTrack === "software_business"
+              : normalizedProfile.revenueTrack === "software_business"
                 ? "Software Business"
                 : "Service Business",
         },
-        { label: "Nächster Fokus", value: profile.priorities },
+        {
+          label: normalizedProfile.revenueTrack === "service_business" ? "Proof-Ziel" : "Nächster Fokus",
+          value:
+            normalizedProfile.revenueTrack === "service_business"
+              ? normalizedProfile.proofTarget
+              : normalizedProfile.priorities,
+        },
       ],
       actions: progressActions,
     },
