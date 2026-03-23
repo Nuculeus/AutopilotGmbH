@@ -13,6 +13,7 @@ export const CONTROL_PLANE_FOUNDATION_TABLES = [
   "experiment_variants",
   "metric_events",
   "revenue_events",
+  "billable_events",
   "credit_ledger",
   "approval_gates",
   "usage_events",
@@ -174,6 +175,24 @@ export const CONTROL_PLANE_SCHEMA_SQL = `
   );
 
   CREATE INDEX IF NOT EXISTS revenue_events_venture_idx ON revenue_events(venture_id, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS billable_events (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    venture_id TEXT NULL REFERENCES ventures(id) ON DELETE SET NULL,
+    run_id TEXT NULL REFERENCES run_executions(id) ON DELETE SET NULL,
+    event_type TEXT NOT NULL,
+    product_key TEXT NOT NULL,
+    credits_cost INTEGER NOT NULL DEFAULT 0,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    approval_gate_id TEXT NULL REFERENCES approval_gates(id) ON DELETE SET NULL,
+    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    settled_at TIMESTAMPTZ NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS billable_events_workspace_idx ON billable_events(workspace_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS billable_events_venture_idx ON billable_events(venture_id, created_at DESC);
 
   CREATE TABLE IF NOT EXISTS credit_ledger (
     id TEXT PRIMARY KEY,

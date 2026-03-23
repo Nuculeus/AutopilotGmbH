@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  insertBillableEvent,
   insertCreditLedgerEntry,
   insertUsageEvent,
 } from "@/lib/db/write-repository";
@@ -20,6 +21,42 @@ function createSqlMock(responses: unknown[][] = []) {
 }
 
 describe("control plane write repository", () => {
+  it("inserts billable events separately from raw usage meters", async () => {
+    const { sql, calls } = createSqlMock();
+
+    await insertBillableEvent(sql, {
+      id: "billable_1",
+      workspaceId: "ws_1",
+      ventureId: "venture_1",
+      runId: "run_1",
+      eventType: "auto_product",
+      productKey: "offer_sprint_v1",
+      creditsCost: 12,
+      idempotencyKey: "run_1:offer_sprint_v1",
+      approvalGateId: null,
+      metadataJson: { source: "run_completion" },
+      createdAt: "2026-03-23T08:00:00.000Z",
+      settledAt: null,
+    });
+
+    expect(calls[0]?.query).toContain("INSERT INTO billable_events");
+    expect(calls[0]?.query).toContain("ON CONFLICT (idempotency_key) DO NOTHING");
+    expect(calls[0]?.values).toEqual([
+      "billable_1",
+      "ws_1",
+      "venture_1",
+      "run_1",
+      "auto_product",
+      "offer_sprint_v1",
+      12,
+      "run_1:offer_sprint_v1",
+      null,
+      JSON.stringify({ source: "run_completion" }),
+      "2026-03-23T08:00:00.000Z",
+      null,
+    ]);
+  });
+
   it("inserts immutable credit ledger entries", async () => {
     const { sql, calls } = createSqlMock();
 

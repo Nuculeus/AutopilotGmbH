@@ -51,6 +51,21 @@ export type RevenueEventRow = {
   created_at: string;
 };
 
+export type BillableEventRow = {
+  id: string;
+  workspace_id: string;
+  venture_id: string | null;
+  run_id: string | null;
+  event_type: string;
+  product_key: string;
+  credits_cost: number;
+  idempotency_key: string;
+  approval_gate_id: string | null;
+  metadata_json: unknown;
+  created_at: string;
+  settled_at: string | null;
+};
+
 export type CreditLedgerRow = {
   id: string;
   workspace_id: string;

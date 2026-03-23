@@ -18,6 +18,7 @@ describe("control plane db foundation", () => {
       "experiment_variants",
       "metric_events",
       "revenue_events",
+      "billable_events",
       "credit_ledger",
       "approval_gates",
       "usage_events",

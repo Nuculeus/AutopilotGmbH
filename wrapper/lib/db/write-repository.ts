@@ -1,5 +1,20 @@
 import type { SqlClient } from "@/lib/db/types";
 
+type InsertBillableEventInput = {
+  id: string;
+  workspaceId: string;
+  ventureId: string | null;
+  runId: string | null;
+  eventType: string;
+  productKey: string;
+  creditsCost: number;
+  idempotencyKey: string;
+  approvalGateId: string | null;
+  metadataJson: unknown;
+  createdAt: string;
+  settledAt: string | null;
+};
+
 type InsertCreditLedgerEntryInput = {
   id: string;
   workspaceId: string;
@@ -29,6 +44,43 @@ type InsertUsageEventInput = {
 
 function toJson(value: unknown) {
   return JSON.stringify(value ?? {});
+}
+
+export async function insertBillableEvent(sql: SqlClient, input: InsertBillableEventInput) {
+  const rows = await sql<Array<{ id: string }>>`
+    INSERT INTO billable_events (
+      id,
+      workspace_id,
+      venture_id,
+      run_id,
+      event_type,
+      product_key,
+      credits_cost,
+      idempotency_key,
+      approval_gate_id,
+      metadata_json,
+      created_at,
+      settled_at
+    )
+    VALUES (
+      ${input.id},
+      ${input.workspaceId},
+      ${input.ventureId},
+      ${input.runId},
+      ${input.eventType},
+      ${input.productKey},
+      ${input.creditsCost},
+      ${input.idempotencyKey},
+      ${input.approvalGateId},
+      ${toJson(input.metadataJson)},
+      ${input.createdAt},
+      ${input.settledAt}
+    )
+    ON CONFLICT (idempotency_key) DO NOTHING
+    RETURNING id
+  `;
+
+  return rows[0]?.id ?? null;
 }
 
 export async function insertCreditLedgerEntry(sql: SqlClient, input: InsertCreditLedgerEntryInput) {
