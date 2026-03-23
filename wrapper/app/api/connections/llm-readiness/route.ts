@@ -1,6 +1,8 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
+import { buildLlmConnectorVerification } from "@/lib/connector-verification";
+import { persistLlmConnectorVerificationForUser } from "@/lib/connector-verification-store";
 import { assessLlmReadiness } from "@/lib/llm-readiness";
 import { canTargetCompany, listCompanyAgents } from "@/lib/paperclip-admin";
 
@@ -35,6 +37,18 @@ export async function POST() {
     companyId: autopilotState.companyId,
     bridgePrincipalId: autopilotState.bridgePrincipalId,
     agents,
+  });
+  await persistLlmConnectorVerificationForUser({
+    clerkUserId: userId,
+    autopilotState: {
+      companyId: autopilotState.companyId,
+      companyName: autopilotState.companyName,
+      bridgePrincipalId: autopilotState.bridgePrincipalId,
+    },
+    verification: buildLlmConnectorVerification({
+      readiness,
+      agents,
+    }),
   });
 
   await client.users.updateUserMetadata(userId, {

@@ -78,6 +78,8 @@ export const CONTROL_PLANE_SCHEMA_SQL = `
   );
 
   CREATE INDEX IF NOT EXISTS connection_bindings_venture_idx ON connection_bindings(venture_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS connection_bindings_unique_idx
+  ON connection_bindings(venture_id, binding_kind, provider);
 
   CREATE TABLE IF NOT EXISTS run_executions (
     id TEXT PRIMARY KEY,

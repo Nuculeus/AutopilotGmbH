@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMock = vi.fn();
 const getUserMock = vi.fn();
+const resolvePersistedLlmReadinessForUserMock = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: authMock,
@@ -12,6 +13,10 @@ vi.mock("@clerk/nextjs/server", () => ({
   })),
 }));
 
+vi.mock("@/lib/connector-verification-store", () => ({
+  resolvePersistedLlmReadinessForUser: resolvePersistedLlmReadinessForUserMock,
+}));
+
 describe("GET /api/paperclip/[...path] workspace host", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -19,6 +24,7 @@ describe("GET /api/paperclip/[...path] workspace host", () => {
     vi.unstubAllGlobals();
     process.env.PAPERCLIP_INTERNAL_URL = "http://paperclip:3100";
     process.env.INTERNAL_BRIDGE_SECRET = "bridge-secret";
+    resolvePersistedLlmReadinessForUserMock.mockResolvedValue(null);
   });
 
   it("rewrites workspace HTML so assets and API stay inside the wrapper proxy", async () => {
@@ -119,5 +125,54 @@ describe("GET /api/paperclip/[...path] workspace host", () => {
       }),
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses persisted connector verification before stale clerk metadata", async () => {
+    authMock.mockResolvedValue({ userId: "user_123" });
+    getUserMock.mockResolvedValue({
+      id: "user_123",
+      publicMetadata: {
+        autopilotProvisioning: {
+          companyId: "cmp_123",
+          companyName: "Meine Autopilot GmbH",
+          provisioningStatus: "active",
+          workspaceStatus: "ready",
+          bridgePrincipalId: "clerk:user_123",
+        },
+      },
+      privateMetadata: {
+        autopilotLlmReadiness: {
+          status: "warning",
+          summary: "stale metadata",
+          checkedAt: "2026-03-22T10:00:00.000Z",
+          probedAdapterType: "codex_local",
+        },
+      },
+    });
+    resolvePersistedLlmReadinessForUserMock.mockResolvedValue({
+      status: "ready",
+      summary: "Persisted readiness is ready.",
+      checkedAt: "2026-03-23T10:00:00.000Z",
+      probedAdapterType: "codex_local",
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("<html></html>", {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      ),
+    );
+
+    const { GET } = await import("@/app/api/paperclip/[...path]/route");
+    const response = await GET(new Request("http://localhost/api/paperclip/workspace"), {
+      params: Promise.resolve({
+        path: ["workspace"],
+      }),
+    });
+
+    expect(response.status).toBe(200);
   });
 });

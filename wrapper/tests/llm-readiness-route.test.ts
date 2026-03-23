@@ -5,6 +5,7 @@ const getUserMock = vi.fn();
 const updateUserMetadataMock = vi.fn();
 const listCompanyAgentsMock = vi.fn();
 const assessLlmReadinessMock = vi.fn();
+const persistLlmConnectorVerificationForUserMock = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: authMock,
@@ -24,6 +25,10 @@ vi.mock("@/lib/paperclip-admin", () => ({
 
 vi.mock("@/lib/llm-readiness", () => ({
   assessLlmReadiness: assessLlmReadinessMock,
+}));
+
+vi.mock("@/lib/connector-verification-store", () => ({
+  persistLlmConnectorVerificationForUser: persistLlmConnectorVerificationForUserMock,
 }));
 
 describe("POST /api/connections/llm-readiness", () => {
@@ -97,6 +102,15 @@ describe("POST /api/connections/llm-readiness", () => {
             summary: "LLM-Zugang ist lauffähig.",
             probedAdapterType: "codex_local",
           }),
+        }),
+      }),
+    );
+    expect(persistLlmConnectorVerificationForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clerkUserId: "user_123",
+        verification: expect.objectContaining({
+          status: "verified",
+          provider: "openai",
         }),
       }),
     );

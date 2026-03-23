@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { summarizeAutopilotState } from "@/lib/autopilot-metadata";
+import { markLlmConnectorVerificationStaleForUser, resolvePersistedLlmReadinessForUser } from "@/lib/connector-verification-store";
 import {
   isLlmReadinessReady,
   normalizeAutopilotLlmReadinessMetadata,
@@ -348,9 +349,15 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
   const user = await client.users.getUser(userId);
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
   const privateMetadata = asRecord(user.privateMetadata);
-  const llmReadiness = normalizeAutopilotLlmReadinessMetadata(
+  const llmReadinessFallback = normalizeAutopilotLlmReadinessMetadata(
     privateMetadata.autopilotLlmReadiness,
   );
+  const llmReadiness =
+    await resolvePersistedLlmReadinessForUser({
+      clerkUserId: userId,
+      fallback: llmReadinessFallback,
+    })
+    ?? llmReadinessFallback;
 
   if (isWorkspaceExecutionPath(path) && !isLlmReadinessReady(llmReadiness)) {
     return NextResponse.json(
@@ -432,6 +439,16 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
 
         const resetSummary = llmReadinessResetSummary(payload.name);
         if (resetSummary) {
+          await markLlmConnectorVerificationStaleForUser({
+            clerkUserId: userId,
+            autopilotState: {
+              companyId: autopilotState.companyId,
+              companyName: autopilotState.companyName,
+              bridgePrincipalId: autopilotState.bridgePrincipalId,
+            },
+            summary: resetSummary,
+            provider: resolveLlmProviderFromSecretName(payload.name),
+          });
           await client.users.updateUserMetadata(userId, {
             privateMetadata: {
               ...privateMetadata,
@@ -453,6 +470,16 @@ async function handleBridgeRequest(request: Request, context: RouteContext) {
       const payload = await upstream.json().catch(() => null);
 
       if (upstream.ok) {
+        await markLlmConnectorVerificationStaleForUser({
+          clerkUserId: userId,
+          autopilotState: {
+            companyId: autopilotState.companyId,
+            companyName: autopilotState.companyName,
+            bridgePrincipalId: autopilotState.bridgePrincipalId,
+          },
+          summary:
+            "LLM-Verbindung wurde entfernt. Bitte in Connections einen aktiven Key speichern und den Readiness-Check erneut ausführen.",
+        });
         await client.users.updateUserMetadata(userId, {
           privateMetadata: {
             ...privateMetadata,

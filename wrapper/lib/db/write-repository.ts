@@ -15,6 +15,16 @@ type InsertBillableEventInput = {
   settledAt: string | null;
 };
 
+type UpsertConnectionBindingInput = {
+  id: string;
+  ventureId: string;
+  bindingKind: string;
+  provider: string;
+  externalRef: string | null;
+  status: string;
+  metadataJson: unknown;
+};
+
 type InsertCreditLedgerEntryInput = {
   id: string;
   workspaceId: string;
@@ -44,6 +54,38 @@ type InsertUsageEventInput = {
 
 function toJson(value: unknown) {
   return JSON.stringify(value ?? {});
+}
+
+export async function upsertConnectionBinding(sql: SqlClient, input: UpsertConnectionBindingInput) {
+  const rows = await sql<Array<{ id: string }>>`
+    INSERT INTO connection_bindings (
+      id,
+      venture_id,
+      binding_kind,
+      provider,
+      external_ref,
+      status,
+      metadata_json
+    )
+    VALUES (
+      ${input.id},
+      ${input.ventureId},
+      ${input.bindingKind},
+      ${input.provider},
+      ${input.externalRef},
+      ${input.status},
+      ${toJson(input.metadataJson)}
+    )
+    ON CONFLICT (venture_id, binding_kind, provider) DO UPDATE
+    SET
+      external_ref = EXCLUDED.external_ref,
+      status = EXCLUDED.status,
+      metadata_json = EXCLUDED.metadata_json,
+      updated_at = NOW()
+    RETURNING id
+  `;
+
+  return rows[0]?.id ?? null;
 }
 
 export async function insertBillableEvent(sql: SqlClient, input: InsertBillableEventInput) {

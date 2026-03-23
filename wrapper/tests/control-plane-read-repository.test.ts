@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getConnectionBindingByVentureIdAndKind,
   getPrimaryVentureByWorkspaceId,
   getVentureSpecByVentureId,
   getWorkspaceByClerkUserId,
@@ -141,5 +142,28 @@ describe("control plane read repository", () => {
     expect(result).toHaveLength(1);
     expect(calls[0]?.query).toContain("FROM credit_ledger");
     expect(calls[0]?.values).toEqual(["ws_1", 500]);
+  });
+
+  it("loads the latest connector verification for a venture and binding kind", async () => {
+    const { sql, calls } = createSqlMock([
+      [
+        {
+          id: "binding_1",
+          venture_id: "venture_1",
+          binding_kind: "llm_readiness",
+          provider: "openai",
+          external_ref: "codex_local",
+          status: "verified",
+          metadata_json: { summary: "ready" },
+          updated_at: "2026-03-23T00:00:00.000Z",
+        },
+      ],
+    ]);
+
+    const result = await getConnectionBindingByVentureIdAndKind(sql, "venture_1", "llm_readiness");
+
+    expect(result?.id).toBe("binding_1");
+    expect(calls[0]?.query).toContain("FROM connection_bindings");
+    expect(calls[0]?.values).toEqual(["venture_1", "llm_readiness"]);
   });
 });

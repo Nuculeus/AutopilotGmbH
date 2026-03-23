@@ -3,6 +3,7 @@ import {
   insertBillableEvent,
   insertCreditLedgerEntry,
   insertUsageEvent,
+  upsertConnectionBinding,
 } from "@/lib/db/write-repository";
 
 function createSqlMock(responses: unknown[][] = []) {
@@ -21,6 +22,33 @@ function createSqlMock(responses: unknown[][] = []) {
 }
 
 describe("control plane write repository", () => {
+  it("upserts connector verification state durably", async () => {
+    const { sql, calls } = createSqlMock([[{ id: "binding_1" }]]);
+
+    const bindingId = await upsertConnectionBinding(sql, {
+      id: "binding_1",
+      ventureId: "venture_1",
+      bindingKind: "llm_readiness",
+      provider: "openai",
+      externalRef: "codex_local",
+      status: "verified",
+      metadataJson: { summary: "ready" },
+    });
+
+    expect(bindingId).toBe("binding_1");
+    expect(calls[0]?.query).toContain("INSERT INTO connection_bindings");
+    expect(calls[0]?.query).toContain("ON CONFLICT (venture_id, binding_kind, provider) DO UPDATE");
+    expect(calls[0]?.values).toEqual([
+      "binding_1",
+      "venture_1",
+      "llm_readiness",
+      "openai",
+      "codex_local",
+      "verified",
+      JSON.stringify({ summary: "ready" }),
+    ]);
+  });
+
   it("inserts billable events separately from raw usage meters", async () => {
     const { sql, calls } = createSqlMock();
 

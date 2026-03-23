@@ -40,6 +40,17 @@ export type VentureSpecRow = {
   updated_at: string;
 };
 
+export type ConnectionBindingRow = {
+  id: string;
+  venture_id: string;
+  binding_kind: string;
+  provider: string;
+  external_ref: string | null;
+  status: string;
+  metadata_json: unknown;
+  updated_at: string;
+};
+
 export type RevenueEventRow = {
   id: string;
   kind: RevenueEvent["kind"] | "first_value_created";

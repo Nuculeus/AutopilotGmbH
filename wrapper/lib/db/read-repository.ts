@@ -1,4 +1,5 @@
 import type {
+  ConnectionBindingRow,
   CreditLedgerRow,
   RevenueEventRow,
   SqlClient,
@@ -52,6 +53,30 @@ export async function getVentureSpecByVentureId(sql: SqlClient, ventureId: strin
       updated_at::text
     FROM venture_specs
     WHERE venture_id = ${ventureId}
+    LIMIT 1
+  `;
+
+  return rows[0] ?? null;
+}
+
+export async function getConnectionBindingByVentureIdAndKind(
+  sql: SqlClient,
+  ventureId: string,
+  bindingKind: string,
+) {
+  const rows = await sql<ConnectionBindingRow[]>`
+    SELECT
+      id,
+      venture_id,
+      binding_kind,
+      provider,
+      external_ref,
+      status,
+      metadata_json,
+      updated_at::text
+    FROM connection_bindings
+    WHERE venture_id = ${ventureId} AND binding_kind = ${bindingKind}
+    ORDER BY updated_at DESC
     LIMIT 1
   `;
 
