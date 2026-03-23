@@ -50,3 +50,16 @@ export type RevenueEventRow = {
   summary: string | null;
   created_at: string;
 };
+
+export type CreditLedgerRow = {
+  id: string;
+  workspace_id: string;
+  venture_id: string | null;
+  event_kind: string;
+  credits_delta: number;
+  euro_cost_cents: number;
+  provider_cost_cents: number;
+  note: string | null;
+  metadata_json: unknown;
+  created_at: string;
+};

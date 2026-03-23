@@ -2,6 +2,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { normalizeCompanyHqProfile } from "@/lib/company-hq";
 import { recordRevenueEventForUser, upsertCompanyHqForUser } from "@/lib/control-plane-store";
+import { recordCreditLedgerEventForUser } from "@/lib/credit-ledger-store";
 import {
   CREDIT_POLICY,
   markStripeEventProcessed,
@@ -166,6 +167,20 @@ export async function POST(request: Request) {
               updatedAt: createdAt,
             },
             autopilotRevenue: nextRevenue,
+          },
+        });
+        await recordCreditLedgerEventForUser({
+          clerkUserId,
+          event: {
+            ventureId: currentProfile.ventureId,
+            eventKind: "grant",
+            creditsDelta: targetPlan === "pro" ? CREDIT_POLICY.proMonthlyCredits : CREDIT_POLICY.starterMonthlyCredits,
+            note: targetPlan === "pro" ? "stripe_plan_pro" : "stripe_plan_starter",
+            metadata: {
+              stripeEventId: event.id,
+              checkoutSessionId: typeof session.id === "string" ? session.id : null,
+            },
+            createdAt,
           },
         });
         await upsertCompanyHqForUser({

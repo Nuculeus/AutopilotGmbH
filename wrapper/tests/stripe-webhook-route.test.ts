@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getUserMock = vi.fn();
 const updateUserMetadataMock = vi.fn();
 const constructEventMock = vi.fn();
+const recordCreditLedgerEventForUserMock = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: vi.fn(async () => ({
@@ -19,6 +20,10 @@ vi.mock("@/lib/stripe", () => ({
       constructEvent: constructEventMock,
     },
   })),
+}));
+
+vi.mock("@/lib/credit-ledger-store", () => ({
+  recordCreditLedgerEventForUser: recordCreditLedgerEventForUserMock,
 }));
 
 describe("POST /api/stripe/webhook", () => {
@@ -117,6 +122,14 @@ describe("POST /api/stripe/webhook", () => {
         }),
       }),
     );
+    expect(recordCreditLedgerEventForUserMock).toHaveBeenCalledWith({
+      clerkUserId: "user_123",
+      event: expect.objectContaining({
+        eventKind: "grant",
+        creditsDelta: 50,
+        note: "stripe_plan_starter",
+      }),
+    });
 
     vi.useRealTimers();
   });
@@ -199,6 +212,7 @@ describe("POST /api/stripe/webhook", () => {
         }),
       }),
     );
+    expect(recordCreditLedgerEventForUserMock).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
@@ -272,6 +286,7 @@ describe("POST /api/stripe/webhook", () => {
     expect(payload.received).toBe(true);
     expect(payload.duplicate).toBe(true);
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordCreditLedgerEventForUserMock).not.toHaveBeenCalled();
   });
 
   it("records revenue for invoice.paid events", async () => {
@@ -351,6 +366,7 @@ describe("POST /api/stripe/webhook", () => {
         }),
       }),
     );
+    expect(recordCreditLedgerEventForUserMock).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
@@ -432,6 +448,7 @@ describe("POST /api/stripe/webhook", () => {
         }),
       }),
     );
+    expect(recordCreditLedgerEventForUserMock).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });

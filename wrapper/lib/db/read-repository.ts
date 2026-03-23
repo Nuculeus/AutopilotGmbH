@@ -1,4 +1,5 @@
 import type {
+  CreditLedgerRow,
   RevenueEventRow,
   SqlClient,
   VentureRow,
@@ -66,6 +67,30 @@ export async function listRevenueEventsByVentureId(
     SELECT id, kind, source, amount_cents, currency, external_ref, summary, created_at::text
     FROM revenue_events
     WHERE venture_id = ${ventureId}
+    ORDER BY created_at ASC
+    LIMIT ${limit}
+  `;
+}
+
+export async function listCreditLedgerEntriesByWorkspaceId(
+  sql: SqlClient,
+  workspaceId: string,
+  limit = 500,
+) {
+  return sql<CreditLedgerRow[]>`
+    SELECT
+      id,
+      workspace_id,
+      venture_id,
+      event_kind,
+      credits_delta,
+      euro_cost_cents,
+      provider_cost_cents,
+      note,
+      metadata_json,
+      created_at::text
+    FROM credit_ledger
+    WHERE workspace_id = ${workspaceId}
     ORDER BY created_at ASC
     LIMIT ${limit}
   `;

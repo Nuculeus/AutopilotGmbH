@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const authMock = vi.fn();
 const getUserMock = vi.fn();
 const updateUserMetadataMock = vi.fn();
+const recordCreditLedgerEventForUserMock = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: authMock,
@@ -12,6 +13,10 @@ vi.mock("@clerk/nextjs/server", () => ({
       updateUserMetadata: updateUserMetadataMock,
     },
   })),
+}));
+
+vi.mock("@/lib/credit-ledger-store", () => ({
+  recordCreditLedgerEventForUser: recordCreditLedgerEventForUserMock,
 }));
 
 describe("POST /api/credits/claim", () => {
@@ -55,6 +60,14 @@ describe("POST /api/credits/claim", () => {
         }),
       }),
     );
+    expect(recordCreditLedgerEventForUserMock).toHaveBeenCalledWith({
+      clerkUserId: "user_123",
+      event: expect.objectContaining({
+        eventKind: "grant",
+        creditsDelta: 100,
+        note: "launch_bonus",
+      }),
+    });
   });
 
   it("does not append a second launch bonus entry once already claimed", async () => {
@@ -86,5 +99,6 @@ describe("POST /api/credits/claim", () => {
 
     expect(response.status).toBe(303);
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordCreditLedgerEventForUserMock).not.toHaveBeenCalled();
   });
 });

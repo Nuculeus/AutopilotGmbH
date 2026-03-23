@@ -7,7 +7,7 @@ import {
   syncLegacyUserState,
 } from "@/lib/control-plane-store";
 import { resolveControlPlaneStateSources } from "@/lib/control-plane-resolution";
-import { summarizeCredits } from "@/lib/credits";
+import { applyCreditLedgerEntries, summarizeCredits } from "@/lib/credits";
 import { evaluateRequiredConnections } from "@/lib/revenue-track";
 import { hasConnectedLlmProvider, hasRunnableLlmBinding } from "@/lib/llm-connections";
 import {
@@ -116,7 +116,6 @@ export async function getCurrentUserState() {
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const creditSummary = summarizeCredits(user.publicMetadata?.autopilotCredits);
   const autopilotState = summarizeAutopilotState(user.publicMetadata, userId);
   const legacyCompanyHqProfile = normalizeCompanyHqProfile(user.privateMetadata?.autopilotCompanyHq);
   const legacyRevenue = normalizeAutopilotRevenueMetadata(user.privateMetadata?.autopilotRevenue);
@@ -138,6 +137,24 @@ export async function getCurrentUserState() {
     legacyCompanyHqProfile,
     legacyRevenue,
   });
+  const creditMetadata = applyCreditLedgerEntries(
+    user.publicMetadata?.autopilotCredits,
+    resolvedState.creditLedgerEntries.map((entry) => ({
+      id: entry.id,
+      eventKind:
+        entry.event_kind === "debit" ||
+        entry.event_kind === "refund" ||
+        entry.event_kind === "technical_reversal"
+          ? entry.event_kind
+          : "grant",
+      creditsDelta: entry.credits_delta,
+      euroCostCents: entry.euro_cost_cents,
+      providerCostCents: entry.provider_cost_cents,
+      note: entry.note ?? undefined,
+      createdAt: entry.created_at,
+    })),
+  );
+  const creditSummary = summarizeCredits(creditMetadata);
   const companyHqProfile = resolvedState.companyHqProfile;
   const revenue = resolvedState.revenue;
   const llmReadiness = normalizeAutopilotLlmReadinessMetadata(

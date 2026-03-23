@@ -6,6 +6,7 @@ import {
   getLaunchBonusExpiryDate,
   normalizeCreditMetadata,
 } from "@/lib/credits";
+import { recordCreditLedgerEventForUser } from "@/lib/credit-ledger-store";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -42,6 +43,15 @@ export async function POST(request: Request) {
         launchBonusClaimedAt: new Date().toISOString(),
         launchBonusExpiresAt: getLaunchBonusExpiryDate(),
       },
+    },
+  });
+  await recordCreditLedgerEventForUser({
+    clerkUserId: userId,
+    event: {
+      eventKind: "grant",
+      creditsDelta: CREDIT_POLICY.launchBonusCredits,
+      note: "launch_bonus",
+      createdAt: new Date().toISOString(),
     },
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyCreditLedgerEntries,
   appendCreditLedgerEntry,
   markStripeEventProcessed,
   normalizeCreditMetadata,
@@ -78,5 +79,41 @@ describe("credit ledger", () => {
     const twice = markStripeEventProcessed(once, "evt_checkout_123");
 
     expect(twice.processedStripeEventIds).toEqual(["evt_checkout_123"]);
+  });
+
+  it("lets db ledger entries override stale metadata counters", () => {
+    const merged = applyCreditLedgerEntries(
+      {
+        plan: "starter",
+        manualCredits: 999,
+        consumedCredits: 123,
+      } satisfies CreditMetadata,
+      [
+        {
+          id: "ledger_1",
+          eventKind: "grant",
+          creditsDelta: 50,
+          euroCostCents: 0,
+          providerCostCents: 0,
+          note: "starter_cycle",
+          createdAt: "2026-03-23T07:00:00.000Z",
+        },
+        {
+          id: "ledger_2",
+          eventKind: "debit",
+          creditsDelta: -10,
+          euroCostCents: 0,
+          providerCostCents: 120,
+          note: "run_charge",
+          createdAt: "2026-03-23T07:05:00.000Z",
+        },
+      ],
+    );
+
+    const summary = summarizeCredits(merged);
+
+    expect(summary.ledgerBacked).toBe(true);
+    expect(summary.availableCredits).toBe(110);
+    expect(summary.debitedCredits).toBe(10);
   });
 });

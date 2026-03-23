@@ -140,6 +140,17 @@ export function appendCreditLedgerEntry(
   };
 }
 
+export function applyCreditLedgerEntries(
+  current: unknown,
+  entries: CreditLedgerEntry[],
+) {
+  const metadata = normalizeCreditMetadata(current);
+  return {
+    ...metadata,
+    creditLedgerEntries: [...entries],
+  };
+}
+
 export function markStripeEventProcessed(current: unknown, eventId: string) {
   const metadata = normalizeCreditMetadata(current);
   if (!eventId || metadata.processedStripeEventIds.includes(eventId)) {

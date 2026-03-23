@@ -7,10 +7,12 @@ import {
   getPrimaryVentureByWorkspaceId,
   getVentureSpecByVentureId,
   getWorkspaceByClerkUserId,
+  listCreditLedgerEntriesByWorkspaceId,
   listRevenueEventsByVentureId,
 } from "@/lib/db/read-repository";
 import { ensureControlPlaneSchema } from "@/lib/db/schema";
 import type {
+  CreditLedgerRow,
   RevenueEventRow,
   SqlClient,
   VentureRow,
@@ -49,6 +51,7 @@ export type ControlPlaneSnapshot = {
   ventureId: string;
   profile: CompanyHqProfile;
   revenue: AutopilotRevenueMetadata;
+  creditLedgerEntries: CreditLedgerRow[];
 };
 
 export class ControlPlaneError extends Error {
@@ -941,5 +944,6 @@ export async function getPrimaryControlPlaneSnapshotForUser(input: {
     ventureId: venture.id,
     profile: toCompanyProfile(spec),
     revenue: toRevenueMetadata(revenueRows),
+    creditLedgerEntries: await listCreditLedgerEntriesByWorkspaceId(sql, workspace.id),
   };
 }

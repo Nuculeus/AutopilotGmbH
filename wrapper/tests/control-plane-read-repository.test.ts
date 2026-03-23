@@ -3,6 +3,7 @@ import {
   getPrimaryVentureByWorkspaceId,
   getVentureSpecByVentureId,
   getWorkspaceByClerkUserId,
+  listCreditLedgerEntriesByWorkspaceId,
   listRevenueEventsByVentureId,
 } from "@/lib/db/read-repository";
 
@@ -115,5 +116,30 @@ describe("control plane read repository", () => {
     expect(result).toHaveLength(1);
     expect(calls[0]?.query).toContain("FROM revenue_events");
     expect(calls[0]?.values).toEqual(["venture_1", 300]);
+  });
+
+  it("loads credit ledger entries for a workspace in chronological order", async () => {
+    const { sql, calls } = createSqlMock([
+      [
+        {
+          id: "ledger_1",
+          workspace_id: "ws_1",
+          venture_id: "venture_1",
+          event_kind: "grant",
+          credits_delta: 100,
+          euro_cost_cents: 0,
+          provider_cost_cents: 0,
+          note: "launch_bonus",
+          metadata_json: {},
+          created_at: "2026-03-23T00:00:00.000Z",
+        },
+      ],
+    ]);
+
+    const result = await listCreditLedgerEntriesByWorkspaceId(sql, "ws_1");
+
+    expect(result).toHaveLength(1);
+    expect(calls[0]?.query).toContain("FROM credit_ledger");
+    expect(calls[0]?.values).toEqual(["ws_1", 500]);
   });
 });
