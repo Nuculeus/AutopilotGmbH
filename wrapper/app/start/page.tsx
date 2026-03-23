@@ -7,6 +7,7 @@ import { getCurrentUserState } from "../../lib/current-user";
 import { resolveLaunchEntryDecision } from "../../lib/launch-entry";
 import { resolveLaunchFlowState } from "../../lib/launch-flow";
 import { advanceRevenueMilestone } from "../../lib/revenue-track";
+import { buildStartPageModel } from "../../lib/start-page";
 
 const checklist = [
   "Aufbauprofil gespeichert und Firmenkern geklärt",
@@ -63,6 +64,11 @@ export default async function StartPage() {
     provisioningStatus: autopilotState.provisioningStatus,
     canOpenWorkspace: autopilotState.canOpenWorkspace,
   });
+  const startPageModel = buildStartPageModel({
+    revenueTrack: companyHqProfile.revenueTrack,
+    availableCredits: creditSummary.availableCredits,
+    reversedCredits: creditSummary.reversedCredits,
+  });
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-8 sm:px-10 lg:px-12">
@@ -83,12 +89,49 @@ export default async function StartPage() {
         <article className="space-y-6">
           <div className="space-y-4">
             <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              Startguthaben und Provisioning vorbereiten
+              Ersten Sprint absichern und Workspace vorbereiten
             </h1>
             <p className="max-w-2xl text-base leading-8 text-[var(--soft)]">
-              Dein Aufbauprofil ist gespeichert. Jetzt prüfen wir Guthaben,
-              Planstatus und die eigentliche Provisionierung in Paperclip,
-              damit dein Workspace ohne unnötige Fehlstarts betriebsbereit wird.
+              Dein Aufbauprofil ist gespeichert. Jetzt sichern wir den ersten
+              klar benannten Sprint, den Budgetrahmen und die eigentliche
+              Provisionierung in Paperclip, damit dein Workspace ohne unnötige
+              Fehlstarts betriebsbereit wird.
+            </p>
+          </div>
+
+          <div className="panel-shell space-y-4">
+            <div className="space-y-3">
+              <p className="font-mono text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
+                Sprint-Katalog
+              </p>
+              <h2 className="text-2xl font-semibold tracking-[-0.03em]">
+                {startPageModel.headline}
+              </h2>
+              <p className="text-sm leading-7 text-[var(--soft)]">
+                {startPageModel.intro}
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {startPageModel.sprints.map((sprint) => (
+                <div key={sprint.key} className="credit-stat h-full">
+                  <span className="credit-label">{sprint.label}</span>
+                  <strong className="credit-value">{sprint.estimatedCredits} Credits</strong>
+                  <p className="mt-2 text-sm leading-7 text-[var(--soft)]">
+                    {sprint.deliverable}
+                  </p>
+                  <p className="mt-3 text-sm leading-7 text-[var(--soft)]">
+                    Erfolg: {sprint.successCondition}
+                  </p>
+                  <p className="mt-3 text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Maximal automatisch: {sprint.maxCredits} Credits
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-sm leading-7 text-[var(--soft)]">
+              {startPageModel.safetyNotice}
             </p>
           </div>
 
@@ -124,7 +167,7 @@ export default async function StartPage() {
             <div className="credit-stat">
               <span className="credit-label">Verfuegbares Guthaben</span>
               <strong className="credit-value">
-                {creditSummary.availableCredits} Credits
+                {startPageModel.budgetSummary}
               </strong>
             </div>
             <div className="credit-stat">
@@ -148,9 +191,7 @@ export default async function StartPage() {
             <div className="credit-stat">
               <span className="credit-label">Retry-Schutz</span>
               <strong className="credit-value">
-                {creditSummary.reversedCredits > 0
-                  ? `${creditSummary.reversedCredits} Credits gutgeschrieben`
-                  : "Keine Reversal-Gutschrift"}
+                {startPageModel.safetyNotice}
               </strong>
             </div>
             <div className="credit-stat">
