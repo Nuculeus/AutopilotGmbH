@@ -53,9 +53,11 @@ export default async function DashboardPage() {
   });
   const cards = [
     {
-      label: "Verfuegbare Credits",
+      label: "Verfuegbares Guthaben",
       value: String(creditSummary.availableCredits),
-      detail: `${creditSummary.freeTrialCredits} Trial + ${creditSummary.launchBonusCredits} Launch + ${creditSummary.monthlyPlanCredits} Plan`,
+      detail: creditSummary.ledgerBacked
+        ? `${creditSummary.grantedCredits} gutgeschrieben · ${creditSummary.debitedCredits} belastet · ${creditSummary.reversedCredits} geschuetzt`
+        : `${creditSummary.freeTrialCredits} Trial + ${creditSummary.launchBonusCredits} Launch + ${creditSummary.monthlyPlanCredits} Plan`,
       icon: BadgeEuro,
     },
     {
@@ -79,9 +81,12 @@ export default async function DashboardPage() {
       icon: Shield,
     },
     {
-      label: "Verbrauchte Credits",
-      value: String(creditSummary.consumedCredits),
-      detail: "Wird spaeter pro Workflow und Agentenlauf belastet",
+      label: "Belastete Credits",
+      value: String(creditSummary.debitedCredits),
+      detail:
+        creditSummary.reversedCredits > 0
+          ? `${creditSummary.reversedCredits} Credits wurden nach technischem Fehler wieder gutgeschrieben`
+          : "Belastungen werden aus abgeschlossenen Ledger-Eintraegen abgeleitet",
       icon: FileBarChart2,
     },
     {

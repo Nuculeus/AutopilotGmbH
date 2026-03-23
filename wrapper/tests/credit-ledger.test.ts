@@ -47,6 +47,10 @@ describe("credit ledger", () => {
     expect(summary.availableCredits).toBe(120);
     expect(summary.consumedCredits).toBe(0);
     expect(summary.manualCredits).toBe(118);
+    expect(summary.grantedCredits).toBe(118);
+    expect(summary.debitedCredits).toBe(18);
+    expect(summary.reversedCredits).toBe(18);
+    expect(summary.ledgerBacked).toBe(true);
   });
 
   it("keeps legacy counter metadata readable while the ledger migration is in progress", () => {
@@ -60,6 +64,10 @@ describe("credit ledger", () => {
     expect(summary.monthlyPlanCredits).toBe(50);
     expect(summary.manualCredits).toBe(12);
     expect(summary.consumedCredits).toBe(7);
+    expect(summary.grantedCredits).toBe(12);
+    expect(summary.debitedCredits).toBe(7);
+    expect(summary.reversedCredits).toBe(0);
+    expect(summary.ledgerBacked).toBe(false);
   });
 
   it("tracks processed stripe events idempotently", () => {

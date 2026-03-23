@@ -10,7 +10,7 @@ import { advanceRevenueMilestone } from "../../lib/revenue-track";
 
 const checklist = [
   "Aufbauprofil gespeichert und Firmenkern geklärt",
-  "Credits oder Plan aktiviert",
+  "Startguthaben oder Plan aktiv",
   "Provisioning-Bridge erreichbar",
   "Workspace-Handoff vorbereitet",
 ];
@@ -83,12 +83,12 @@ export default async function StartPage() {
         <article className="space-y-6">
           <div className="space-y-4">
             <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              Credits und Provisioning freischalten
+              Startguthaben und Provisioning vorbereiten
             </h1>
             <p className="max-w-2xl text-base leading-8 text-[var(--soft)]">
-              Dein Aufbauprofil ist gespeichert. Jetzt aktivieren wir Credits,
-              Billing und die eigentliche Provisionierung in Paperclip, damit
-              deine Arbeitsfläche betriebsbereit wird.
+              Dein Aufbauprofil ist gespeichert. Jetzt prüfen wir Guthaben,
+              Planstatus und die eigentliche Provisionierung in Paperclip,
+              damit dein Workspace ohne unnötige Fehlstarts betriebsbereit wird.
             </p>
           </div>
 
@@ -122,7 +122,7 @@ export default async function StartPage() {
 
           <div className="credits-stack">
             <div className="credit-stat">
-              <span className="credit-label">Verfuegbar</span>
+              <span className="credit-label">Verfuegbares Guthaben</span>
               <strong className="credit-value">
                 {creditSummary.availableCredits} Credits
               </strong>
@@ -134,9 +134,23 @@ export default async function StartPage() {
               </strong>
             </div>
             <div className="credit-stat">
-              <span className="credit-label">Launch Bonus</span>
+              <span className="credit-label">Gutgeschrieben</span>
               <strong className="credit-value">
-                {creditSummary.launchBonusClaimed ? "bereits aktiviert" : "100 Credits offen"}
+                {creditSummary.grantedCredits} Credits
+              </strong>
+            </div>
+            <div className="credit-stat">
+              <span className="credit-label">Belastet</span>
+              <strong className="credit-value">
+                {creditSummary.debitedCredits} Credits
+              </strong>
+            </div>
+            <div className="credit-stat">
+              <span className="credit-label">Retry-Schutz</span>
+              <strong className="credit-value">
+                {creditSummary.reversedCredits > 0
+                  ? `${creditSummary.reversedCredits} Credits gutgeschrieben`
+                  : "Keine Reversal-Gutschrift"}
               </strong>
             </div>
             <div className="credit-stat">
@@ -149,7 +163,7 @@ export default async function StartPage() {
             {creditSummary.bonusEligible ? (
               <form action="/api/credits/claim" method="POST">
                 <button className="secondary-cta w-full" type="submit">
-                  100 Launch Credits claimen
+                  100 Launch-Guthaben claimen
                 </button>
               </form>
             ) : null}

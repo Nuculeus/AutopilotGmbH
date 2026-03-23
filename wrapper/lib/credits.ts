@@ -47,6 +47,10 @@ export type CreditSummary = {
   manualCredits: number;
   consumedCredits: number;
   availableCredits: number;
+  grantedCredits: number;
+  debitedCredits: number;
+  reversedCredits: number;
+  ledgerBacked: boolean;
   launchBonusClaimed: boolean;
   launchBonusExpiresAt: string | null;
   bonusEligible: boolean;
@@ -197,6 +201,11 @@ export function summarizeCredits(value: unknown): CreditSummary {
     }
     return sum;
   }, 0);
+  const grantedCredits = usesLedger
+    ? ledgerPositiveCredits
+    : launchBonusCredits + metadata.manualCredits;
+  const debitedCredits = usesLedger ? ledgerConsumedCredits : metadata.consumedCredits;
+  const reversedCredits = usesLedger ? ledgerRefundedCredits : 0;
   const availableCredits = Math.max(
     usesLedger
       ? freeTrialCredits + monthlyPlanCredits + ledgerCreditsDelta
@@ -216,6 +225,10 @@ export function summarizeCredits(value: unknown): CreditSummary {
     manualCredits: usesLedger ? ledgerPositiveCredits : metadata.manualCredits,
     consumedCredits: usesLedger ? Math.max(ledgerConsumedCredits - ledgerRefundedCredits, 0) : metadata.consumedCredits,
     availableCredits,
+    grantedCredits,
+    debitedCredits,
+    reversedCredits,
+    ledgerBacked: usesLedger,
     launchBonusClaimed: metadata.launchBonusClaimed,
     launchBonusExpiresAt: metadata.launchBonusExpiresAt ?? null,
     bonusEligible: !metadata.launchBonusClaimed,
