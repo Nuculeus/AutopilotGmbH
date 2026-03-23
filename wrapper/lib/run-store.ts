@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { resolveControlPlaneDatabaseUrl } from "@/lib/db/client";
 import { ensureControlPlaneSchema } from "@/lib/db/schema";
+import { insertUsageEvent } from "@/lib/db/write-repository";
 import type { SqlClient } from "@/lib/db/types";
 import type { RevenueTrack } from "@/lib/revenue-track";
 import type {
@@ -202,6 +203,18 @@ async function updateRunStatus(input: {
       updated_at = NOW()
     WHERE id = ${input.runId}
   `;
+}
+
+async function getRunWorkspaceContext(input: { sql: SqlClient; runId: string }) {
+  const rows = await input.sql<Array<{ workspace_id: string; venture_id: string }>>`
+    SELECT v.workspace_id, r.venture_id
+    FROM run_executions r
+    JOIN ventures v ON v.id = r.venture_id
+    WHERE r.id = ${input.runId}
+    LIMIT 1
+  `;
+
+  return rows[0] ?? null;
 }
 
 export async function getRunForUser(input: { clerkUserId: string; runId: string }) {
@@ -549,18 +562,44 @@ export function createRunQueueDriver(): RunQueueDriver {
         throw new RunStoreError(503, "DATABASE_URL fehlt. Run-Store ist nicht verfuegbar.");
       }
       await ensureRunSchema(sql);
+      const spentCents = Math.max(0, input.spentCents ?? 0);
 
       await sql`
         UPDATE run_executions
         SET
           status = 'succeeded',
           output_json = ${toJson(input.output ?? {})}::jsonb,
-          spent_cents = ${Math.max(0, input.spentCents ?? 0)},
+          spent_cents = ${spentCents},
           error_message = NULL,
           finished_at = NOW(),
           updated_at = NOW()
         WHERE id = ${input.runId}
       `;
+
+      if (spentCents > 0) {
+        const context = await getRunWorkspaceContext({
+          sql,
+          runId: input.runId,
+        });
+
+        if (context) {
+          await insertUsageEvent(sql, {
+            id: `usage_${crypto.randomUUID()}`,
+            workspaceId: context.workspace_id,
+            ventureId: context.venture_id,
+            runId: input.runId,
+            provider: "internal_worker",
+            category: "run_execution",
+            unitCount: 1,
+            estimatedCostCents: 0,
+            finalCostCents: spentCents,
+            metadataJson: {
+              source: "run_store",
+            },
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
     },
 
     async markRunFailed(input) {

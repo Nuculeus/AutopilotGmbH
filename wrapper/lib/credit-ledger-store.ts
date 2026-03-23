@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { resolveControlPlaneDatabaseUrl } from "@/lib/db/client";
 import { ensureControlPlaneSchema } from "@/lib/db/schema";
+import { insertCreditLedgerEntry } from "@/lib/db/write-repository";
 import type { SqlClient, VentureRow, WorkspaceRow } from "@/lib/db/types";
 import type { CreditLedgerEventKind } from "@/lib/credits";
 
@@ -42,10 +43,6 @@ async function ensureLedgerSchema(sql: SqlClient) {
   }
 
   await schemaReady;
-}
-
-function toJson(value: unknown) {
-  return JSON.stringify(value ?? {});
 }
 
 async function ensureWorkspace(sql: SqlClient, clerkUserId: string) {
@@ -109,32 +106,18 @@ export async function recordCreditLedgerEventForUser(input: {
     : await getPrimaryVenture(sql, workspace.id);
 
   const ledgerId = `ledger_${randomUUID()}`;
-  await sql`
-    INSERT INTO credit_ledger (
-      id,
-      workspace_id,
-      venture_id,
-      event_kind,
-      credits_delta,
-      euro_cost_cents,
-      provider_cost_cents,
-      note,
-      metadata_json,
-      created_at
-    )
-    VALUES (
-      ${ledgerId},
-      ${workspace.id},
-      ${venture?.id ?? null},
-      ${input.event.eventKind},
-      ${Math.trunc(input.event.creditsDelta)},
-      ${Math.max(0, Math.trunc(input.event.euroCostCents ?? 0))},
-      ${Math.max(0, Math.trunc(input.event.providerCostCents ?? 0))},
-      ${input.event.note ?? null},
-      ${toJson(input.event.metadata ?? {})}::jsonb,
-      ${input.event.createdAt ?? new Date().toISOString()}
-    )
-  `;
+  await insertCreditLedgerEntry(sql, {
+    id: ledgerId,
+    workspaceId: workspace.id,
+    ventureId: venture?.id ?? null,
+    eventKind: input.event.eventKind,
+    creditsDelta: Math.trunc(input.event.creditsDelta),
+    euroCostCents: Math.max(0, Math.trunc(input.event.euroCostCents ?? 0)),
+    providerCostCents: Math.max(0, Math.trunc(input.event.providerCostCents ?? 0)),
+    note: input.event.note ?? null,
+    metadataJson: input.event.metadata ?? {},
+    createdAt: input.event.createdAt ?? new Date().toISOString(),
+  });
 
   return {
     ledgerId,
